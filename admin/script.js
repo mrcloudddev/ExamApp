@@ -1,7 +1,7 @@
-// ==========================================
-// CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
-// ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwJjaZqt4ebsGQryhds0wL797izZPiXjMDZZW3-Pic62NIs_i3n0tA8EW8zG6O5P9ceQw/exec";
+// =========================================================================================
+// CONFIG: TEMPEL URL WEB APP BARU HASIL DEPLOY ULANG LANGKAH 1 ANDA DI SINI
+// =========================================================================================
+const API_URL = "https://script.google.com/macros/s/AKfycbyYbWRmO7qx7lRdGGYWSBrzq4UNV23gUu1sOQ_CQ831tzsBcV-aIP20HNt3G6kJMMVQ/exec";
 
 // --- 1. CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -10,7 +10,7 @@ document.querySelectorAll('#sidebar-nav button').forEach(button => {
             b.classList.remove('active', 'text-white');
             b.classList.add('text-slate-400');
         });
-        // Perbaikan typo (.classList.add)
+        
         button.classList.add('active', 'text-white');
         button.classList.remove('text-slate-400');
 
@@ -37,11 +37,11 @@ document.querySelectorAll('#sidebar-nav button').forEach(button => {
 // --- 2. LIVE DATA ENGINE ---
 function windowLoadHandler() {
     refreshData();
-    setInterval(refreshData, 10000); // Sinkronisasi otomatis tiap 10 detik
+    setInterval(refreshData, 10000); // Polling otomatis jalankan ulang tiap 10 detik
 }
 
 async function refreshData() {
-    if (API_URL.includes("PASTIKAN_URL_DEPLOY")) return;
+    if (API_URL.includes("TAUTAN_WEB_APP_BARU")) return;
     
     try {
         const response = await fetch(`${API_URL}?action=getAdminData`);
