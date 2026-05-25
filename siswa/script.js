@@ -1,15 +1,13 @@
-// ==========================================
-// CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
-// ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbyYbWRmO7qx7lRdGGYWSBrzq4UNV23gUu1sOQ_CQ831tzsBcV-aIP20HNt3G6kJMMVQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwY4HQ0nx1aJpcLE6NMNTk3eyY8RW-l8E2cdP_4P-n31AJVNTN55NITZGcmKD3TOc2Rpg/exec";
 
 let sessionToken = "";
-let currentQuestion = null;
-let currentNumber = 1;
+let examQuestions = [];
+let studentAnswers = {};
+let doubtfulQuestions = {};
+let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
-let selectedAnswer = "";
 
 const pages = {
     login: document.getElementById('login-page'),
@@ -18,26 +16,21 @@ const pages = {
     finish: document.getElementById('finish-page')
 };
 
-// --- SECURITY ENGINE: ANTI-CHEAT LOCKS ---
+// --- SECURITIES GUARD ENGINE ---
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
-    if (e.key === 'F12' || 
-        (e.ctrlKey && e.shiftKey && e.key === 'I') || 
-        (e.ctrlKey && e.key === 'c') || 
-        (e.ctrlKey && e.key === 'v')) {
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'v')) {
         e.preventDefault();
         alert('Fitur proteksi aktif: Dilarang menyalin teks/membuka developer tools!');
     }
 });
 
-// Deteksi Blur (Keluar Tab/Membuka Aplikasi Lain)
 window.addEventListener('blur', () => {
     if (sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
         triggerViolation("Pindah Tab / Aplikasi (Window Blur)");
     }
 });
 
-// Deteksi Memaksa Keluar dari Fullscreen
 document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement && sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
         triggerViolation("Keluar dari Mode Fullscreen");
@@ -47,26 +40,19 @@ document.addEventListener('fullscreenchange', () => {
 function triggerViolation(type) {
     violationCount++;
     logViolationToAPI(type);
-
     if (violationCount >= MAX_VIOLATIONS) {
         autoSubmitExam("Melebihi Batas Toleransi Kecurangan");
     } else {
-        showBlocker(`Peringatan Pelanggaran (${violationCount}/${MAX_VIOLATIONS})`, `Anda terdeteksi melakukan tindakan terlarang: <strong>${type}</strong>. Silakan masuk kembali ke mode fullscreen.`);
+        document.getElementById('blocker-title').innerHTML = `Peringatan Pelanggaran (${violationCount}/${MAX_VIOLATIONS})`;
+        document.getElementById('blocker-msg').innerHTML = `Anda terdeteksi melakukan tindakan terlarang: <strong>${type}</strong>. Silakan masuk kembali ke mode fullscreen.`;
+        document.getElementById('blocker-overlay').classList.remove('hidden');
     }
-}
-
-function showBlocker(title, msg) {
-    document.getElementById('blocker-title').innerHTML = title;
-    document.getElementById('blocker-msg').innerHTML = msg;
-    document.getElementById('blocker-overlay').classList.remove('hidden');
 }
 
 document.getElementById('btn-resume').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         document.getElementById('blocker-overlay').classList.add('hidden');
-    }).catch(() => {
-        alert("Wajib mengizinkan mode fullscreen untuk melanjutkan assessment!");
-    });
+    }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
 });
 
 // --- AUTH ENGINE ---
@@ -74,168 +60,132 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nisn = document.getElementById('input-nisn').value;
     const pin = document.getElementById('input-pin').value;
-    
-    const btnLogin = document.getElementById('btn-login');
-    btnLogin.disabled = true;
-    btnLogin.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Memverifikasi data...';
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true; btn.innerHTML = 'Memverifikasi...';
 
     try {
         const response = await fetch(`${API_URL}?action=login&nisn=${nisn}&pin=${pin}`);
         const data = await response.json();
-
         if (data.status === "success") {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
             switchPage('instruction');
         } else {
-            alert(data.message || "Kredensial salah. Periksa nomor peserta & PIN!");
+            alert(data.message || "Kredensial Anda salah!");
         }
-    } catch (err) {
-        alert("Terjadi masalah koneksi. Periksa jaringan Anda.");
-    } finally {
-        btnLogin.disabled = false;
-        btnLogin.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
-    }
+    } catch (err) { alert("Masalah koneksi ke server."); }
+    finally { btn.disabled = false; btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>'; }
 });
 
 document.getElementById('btn-start-exam').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         switchPage('exam');
-        document.getElementById('exam-timer').classList.remove('hidden');
-        document.getElementById('exam-timer').classList.add('flex');
-        startTimer(60 * 90); // Timer default: 90 Menit
-        fetchNextQuestion();
-    }).catch(() => {
-        alert("Gagal mengaktifkan sistem keamanan. Harap izinkan mode Fullscreen.");
-    });
+        document.getElementById('exam-timer').classList.replace('hidden', 'flex');
+        startTimer(60 * 90);
+        fetchExamPackage();
+    }).catch(() => alert("Gagal mengaktifkan modul fullscreen."));
 });
 
-// --- EXAM CORE (PARTIAL FETCH METHOD) ---
-async function fetchNextQuestion() {
+// --- CBT CORE SYSTEM ---
+async function fetchExamPackage() {
     const nisn = localStorage.getItem('nisn');
     try {
         const res = await fetch(`${API_URL}?action=getQuestion&nisn=${nisn}&token=${sessionToken}`);
         const data = await res.json();
-
-        if (data.status === "finished") {
-            finishExam(data.nama);
-            return;
-        }
-
         if (data.status === "success") {
-            currentQuestion = data.question;
-            currentNumber = data.current_index;
-            renderQuestion();
+            examQuestions = data.questions;
+            activeIndex = 0;
+            renderCbtDashboard();
+        } else {
+            alert(data.message || "Tidak ada paket ujian aktif.");
+            autoSubmitExam("Paket Tidak Tersedia");
         }
-    } catch (err) {
-        alert("Gagal memuat soal. Mengambil ulang...");
-        fetchNextQuestion();
-    }
+    } catch (err) { alert("Gagal mengambil paket soal."); }
 }
 
-function renderQuestion() {
-    document.getElementById('current-question-num').innerText = currentNumber;
+function renderCbtDashboard() {
+    if (examQuestions.length === 0) return;
+    const currentQuestion = examQuestions[activeIndex];
+    
+    document.getElementById('current-question-num').innerText = activeIndex + 1;
     document.getElementById('question-weight').innerText = currentQuestion.bobot;
     document.getElementById('question-text').innerText = currentQuestion.pertanyaan;
 
     const optContainer = document.getElementById('options-container');
     optContainer.innerHTML = '';
 
-    const opsiKeys = ['a', 'b', 'c', 'd', 'e'];
-    opsiKeys.forEach(key => {
+    ['a', 'b', 'c', 'd', 'e'].forEach(key => {
         if (currentQuestion[`opsi_${key}`]) {
             const btn = document.createElement('button');
-            btn.className = "option-card w-full text-left bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
+            btn.className = "option-card w-full text-left bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
+            if (studentAnswers[currentQuestion.id_soal] === key) btn.classList.add('selected');
+
             btn.onclick = () => {
                 document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
                 btn.classList.add('selected');
-                selectedAnswer = key;
+                studentAnswers[currentQuestion.id_soal] = key;
+                saveAnswerToCloud(currentQuestion.id_soal, key);
+                renderGridIndicators();
             };
-            btn.innerHTML = `
-                <span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 group-hover:border-indigo-200 text-slate-600 group-hover:text-indigo-600 text-xs font-bold rounded-xl flex items-center justify-center uppercase transition-all">${key}</span>
-                <span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>
-            `;
+            btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>`;
             optContainer.appendChild(btn);
         }
     });
+
+    document.getElementById('btn-finish-trigger').classList.toggle('hidden', activeIndex !== examQuestions.length - 1);
+    renderGridIndicators();
 }
 
-document.getElementById('btn-next').addEventListener('click', async () => {
-    if (!selectedAnswer) {
-        alert("Pilih salah satu jawaban terlebih dahulu!");
-        return;
-    }
+// --- CBT NAVIGATORS ---
+document.getElementById('btn-next').addEventListener('click', () => { if (activeIndex < examQuestions.length - 1) { activeIndex++; renderCbtDashboard(); } });
+document.getElementById('btn-prev').addEventListener('click', () => { if (activeIndex > 0) { activeIndex--; renderCbtDashboard(); } });
+document.getElementById('btn-doubt').addEventListener('click', () => { doubtfulQuestions[examQuestions[activeIndex].id_soal] = !doubtfulQuestions[examQuestions[activeIndex].id_soal]; renderGridIndicators(); });
 
+function renderGridIndicators() {
+    const grid = document.getElementById('question-grid'); grid.innerHTML = '';
+    examQuestions.forEach((q, idx) => {
+        const box = document.createElement('button');
+        box.className = "w-10 h-10 rounded-xl font-bold text-xs flex items-center justify-center transition-all ";
+        box.innerText = idx + 1;
+
+        if (idx === activeIndex) box.className += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100";
+        else if (doubtfulQuestions[q.id_soal]) box.className += "bg-amber-500 text-white";
+        else if (studentAnswers[q.id_soal]) box.className += "bg-emerald-600 text-white";
+        else box.className += "bg-slate-100 text-slate-600 hover:bg-slate-200";
+
+        box.onclick = () => { activeIndex = idx; renderCbtDashboard(); };
+        grid.appendChild(box);
+    });
+}
+
+function saveAnswerToCloud(idSoal, jawaban) {
     const nisn = localStorage.getItem('nisn');
-    const btn = document.getElementById('btn-next');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Menyimpan...';
+    fetch(API_URL, {
+        method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'submitAnswer', nisn: nisn, token: sessionToken, id_soal: idSoal, jawaban: jawaban })
+    });
+}
 
-    try {
-        await fetch(`${API_URL}`, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                action: 'submitAnswer',
-                nisn: nisn,
-                token: sessionToken,
-                id_soal: currentQuestion.id_soal,
-                jawaban: selectedAnswer
-            })
-        });
-
-        selectedAnswer = "";
-        fetchNextQuestion();
-    } catch (err) {
-        alert("Koneksi gagal. Coba klik kembali.");
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Simpan & Lanjut <i class="fa-solid fa-chevron-right text-xs"></i>';
+document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
+    if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas?")) {
+        const nisn = localStorage.getItem('nisn');
+        try {
+            await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
+            finishExam(localStorage.getItem('nisn'));
+        } catch(e) { finishExam("-"); }
     }
 });
 
 // --- CORE UTILS ---
-function switchPage(pageName) {
-    Object.values(pages).forEach(p => p.classList.add('hidden'));
-    pages[pageName].classList.remove('hidden');
-}
-
+function switchPage(pageName) { Object.values(pages).forEach(p => p.classList.add('hidden')); pages[pageName].classList.remove('hidden'); }
 function startTimer(durationSeconds) {
     let timeLeft = durationSeconds;
     timerInterval = setInterval(() => {
-        let hrs = Math.floor(timeLeft / 3600);
-        let mins = Math.floor((timeLeft % 3600) / 60);
-        let secs = timeLeft % 60;
-
-        document.getElementById('timer-countdown').innerText = 
-            `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-        
-        if (--timeLeft < 0) {
-            clearInterval(timerInterval);
-            autoSubmitExam("Waktu Ujian Habis");
-        }
+        let hrs = Math.floor(timeLeft / 3600); let mins = Math.floor((timeLeft % 3600) / 60); let secs = timeLeft % 60;
+        document.getElementById('timer-countdown').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+        if (--timeLeft < 0) { clearInterval(timerInterval); autoSubmitExam("Waktu Sesi Habis"); }
     }, 1000);
 }
-
-async function logViolationToAPI(type) {
-    const nisn = localStorage.getItem('nisn');
-    navigator.sendBeacon(`${API_URL}`, new URLSearchParams({
-        action: 'logViolation', nisn: nisn, jenis: type
-    }));
-}
-
-function autoSubmitExam(reason) {
-    clearInterval(timerInterval);
-    if (document.fullscreenElement) document.exitFullscreen();
-    alert(`Ujian dihentikan otomatis: ${reason}`);
-    finishExam("-");
-}
-
-function finishExam(nama) {
-    clearInterval(timerInterval);
-    if (document.fullscreenElement) document.exitFullscreen();
-    document.getElementById('exam-timer').classList.add('hidden');
-    document.getElementById('res-nama').innerText = nama;
-    switchPage('finish');
-}
+async function logViolationToAPI(type) { const nisn = localStorage.getItem('nisn'); navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type })); }
+function autoSubmitExam(reason) { clearInterval(timerInterval); if (document.fullscreenElement) document.exitFullscreen(); alert(`Ujian selesai: ${reason}`); finishExam("-"); }
+function finishExam(nama) { clearInterval(timerInterval); if (document.fullscreenElement) document.exitFullscreen(); document.getElementById('exam-timer').classList.add('hidden'); document.getElementById('res-nama').innerText = nama; switchPage('finish'); }
