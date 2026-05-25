@@ -1,15 +1,16 @@
-// Ganti dengan URL Web App Google Apps Script Anda yang sudah di-deploy
+// ==========================================
+// CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
+// ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbwW73ER0bU9AIdMeyFCDmargiXZRDOq98We0JJk-F0o5xnjBFxPuUMwHvc7fTwa8GLluA/exec";
 
 let sessionToken = "";
 let currentQuestion = null;
 let currentNumber = 1;
-let totalQuestions = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
+let selectedAnswer = "";
 
-// DOM Selectors
 const pages = {
     login: document.getElementById('login-page'),
     instruction: document.getElementById('instruction-page'),
@@ -17,29 +18,28 @@ const pages = {
     finish: document.getElementById('finish-page')
 };
 
-// --- SECURITY: PREVENT INTERFERENCE ---
+// --- SECURITY ENGINE: ANTI-CHEAT LOCKS ---
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
-    // Blokir F12, Ctrl+Shift+I, Ctrl+C, Ctrl+V, Alt+Tab (maksimal semampunya di browser)
     if (e.key === 'F12' || 
         (e.ctrlKey && e.shiftKey && e.key === 'I') || 
         (e.ctrlKey && e.key === 'c') || 
         (e.ctrlKey && e.key === 'v')) {
         e.preventDefault();
-        alert('Tindakan ini dilarang selama ujian berlangsung!');
+        alert('Fitur proteksi aktif: Dilarang menyalin teks/membuka developer tools!');
     }
 });
 
-// Deteksi Blur / Pindah Tab & Aplikasi
+// Deteksi Blur (Keluar Tab/Membuka Aplikasi Lain)
 window.addEventListener('blur', () => {
-    if (sessionToken && !pages.finish.classList.contains('hidden')) {
+    if (sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
         triggerViolation("Pindah Tab / Aplikasi (Window Blur)");
     }
 });
 
-// Deteksi Keluar Fullscreen
+// Deteksi Memaksa Keluar dari Fullscreen
 document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement && sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
+    if (!document.fullscreenElement && sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
         triggerViolation("Keluar dari Mode Fullscreen");
     }
 });
@@ -51,7 +51,7 @@ function triggerViolation(type) {
     if (violationCount >= MAX_VIOLATIONS) {
         autoSubmitExam("Melebihi Batas Toleransi Kecurangan");
     } else {
-        showBlocker(`Peringatan Pelanggaran (${violationCount}/${MAX_VIOLATIONS})`, `Anda terdeteksi melakukan tindakan terlarang: <strong>${type}</strong>. Silakan kembali masuk mode fullscreen.`);
+        showBlocker(`Peringatan Pelanggaran (${violationCount}/${MAX_VIOLATIONS})`, `Anda terdeteksi melakukan tindakan terlarang: <strong>${type}</strong>. Silakan masuk kembali ke mode fullscreen.`);
     }
 }
 
@@ -64,18 +64,17 @@ function showBlocker(title, msg) {
 document.getElementById('btn-resume').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         document.getElementById('blocker-overlay').classList.add('hidden');
-    }).catch(err => {
-        alert("Harap izinkan mode fullscreen untuk melanjutkan ujian!");
+    }).catch(() => {
+        alert("Wajib mengizinkan mode fullscreen untuk melanjutkan assessment!");
     });
 });
 
-// --- AUTHENTICATION ---
+// --- AUTH ENGINE ---
 document.getElementById('form-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nisn = document.getElementById('input-nisn').value;
     const pin = document.getElementById('input-pin').value;
     
-    // Loading State
     const btnLogin = document.getElementById('btn-login');
     btnLogin.disabled = true;
     btnLogin.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Memverifikasi data...';
@@ -89,10 +88,10 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
             localStorage.setItem('nisn', nisn);
             switchPage('instruction');
         } else {
-            alert(data.message || "Gagal masuk. Periksa kembali NISN & PIN!");
+            alert(data.message || "Kredensial salah. Periksa nomor peserta & PIN!");
         }
     } catch (err) {
-        alert("Terjadi kesalahan koneksi ke server.");
+        alert("Terjadi masalah koneksi. Periksa jaringan Anda.");
     } finally {
         btnLogin.disabled = false;
         btnLogin.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
@@ -104,14 +103,14 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.remove('hidden');
         document.getElementById('exam-timer').classList.add('flex');
-        startTimer(60 * 90); // Default 90 menit (idealnya waktu ditarik dari server)
+        startTimer(60 * 90); // Timer default: 90 Menit
         fetchNextQuestion();
     }).catch(() => {
-        alert("Anda wajib masuk mode Full-Screen untuk memulai ujian.");
+        alert("Gagal mengaktifkan sistem keamanan. Harap izinkan mode Fullscreen.");
     });
 });
 
-// --- CORE EXAM ENGINE (PARTIAL FETCH) ---
+// --- EXAM CORE (PARTIAL FETCH METHOD) ---
 async function fetchNextQuestion() {
     const nisn = localStorage.getItem('nisn');
     try {
@@ -129,7 +128,8 @@ async function fetchNextQuestion() {
             renderQuestion();
         }
     } catch (err) {
-        alert("Gagal mengambil soal. Memuat ulang otomatis...");
+        alert("Gagal memuat soal. Mengambil ulang...");
+        fetchNextQuestion();
     }
 }
 
@@ -143,10 +143,14 @@ function renderQuestion() {
 
     const opsiKeys = ['a', 'b', 'c', 'd', 'e'];
     opsiKeys.forEach(key => {
-        if(currentQuestion[`opsi_${key}`]) {
+        if (currentQuestion[`opsi_${key}`]) {
             const btn = document.createElement('button');
             btn.className = "option-card w-full text-left bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
-            btn.onclick = () => selectOption(btn, key);
+            btn.onclick = () => {
+                document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedAnswer = key;
+            };
             btn.innerHTML = `
                 <span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 group-hover:border-indigo-200 text-slate-600 group-hover:text-indigo-600 text-xs font-bold rounded-xl flex items-center justify-center uppercase transition-all">${key}</span>
                 <span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>
@@ -154,13 +158,6 @@ function renderQuestion() {
             optContainer.appendChild(btn);
         }
     });
-}
-
-let selectedAnswer = "";
-function selectOption(element, key) {
-    document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
-    element.classList.add('selected');
-    selectedAnswer = key;
 }
 
 document.getElementById('btn-next').addEventListener('click', async () => {
@@ -175,9 +172,9 @@ document.getElementById('btn-next').addEventListener('click', async () => {
     btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Menyimpan...';
 
     try {
-        const res = await fetch(`${API_URL}`, {
+        await fetch(`${API_URL}`, {
             method: 'POST',
-            mode: 'no-cors', // Atasi CORS untuk web app script Google
+            mode: 'no-cors',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
                 action: 'submitAnswer',
@@ -188,18 +185,17 @@ document.getElementById('btn-next').addEventListener('click', async () => {
             })
         });
 
-        // Karena no-cors, kita asumsikan sukses dan langsung tarik soal berikutnya secara parsial
         selectedAnswer = "";
         fetchNextQuestion();
     } catch (err) {
-        alert("Gagal mengirim jawaban. Coba lagi.");
+        alert("Koneksi gagal. Coba klik kembali.");
     } finally {
         btn.disabled = false;
         btn.innerHTML = 'Simpan & Lanjut <i class="fa-solid fa-chevron-right text-xs"></i>';
     }
 });
 
-// --- HELPER FUNCTION ---
+// --- CORE UTILS ---
 function switchPage(pageName) {
     Object.values(pages).forEach(p => p.classList.add('hidden'));
     pages[pageName].classList.remove('hidden');
@@ -231,14 +227,14 @@ async function logViolationToAPI(type) {
 
 function autoSubmitExam(reason) {
     clearInterval(timerInterval);
-    if(document.fullscreenElement) document.exitFullscreen();
-    alert(`Ujian Anda dihentikan otomatis: ${reason}`);
+    if (document.fullscreenElement) document.exitFullscreen();
+    alert(`Ujian dihentikan otomatis: ${reason}`);
     finishExam("-");
 }
 
 function finishExam(nama) {
     clearInterval(timerInterval);
-    if(document.fullscreenElement) document.exitFullscreen();
+    if (document.fullscreenElement) document.exitFullscreen();
     document.getElementById('exam-timer').classList.add('hidden');
     document.getElementById('res-nama').innerText = nama;
     switchPage('finish');
