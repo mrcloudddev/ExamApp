@@ -9,7 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .nav-item.active { background-color: #4f46e5; color: #ffffff; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-100 antialiased font-sans">
 
@@ -23,20 +26,11 @@
                         <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">● Server Online</span>
                     </div>
                 </div>
-                
                 <nav class="space-y-1.5" id="sidebar-nav">
-                    <button data-target="page-monitor" class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left outline-none">
-                        <i class="fa-solid fa-chart-pie"></i> Real-time Monitor
-                    </button>
-                    <button data-target="page-siswa" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none">
-                        <i class="fa-solid fa-graduation-cap"></i> Data Siswa
-                    </button>
-                    <button data-target="page-soal" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none">
-                        <i class="fa-solid fa-book-bookmark"></i> Bank Soal
-                    </button>
-                    <button data-target="page-setting" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none">
-                        <i class="fa-solid fa-sliders"></i> Pengaturan Ujian
-                    </button>
+                    <button data-target="page-monitor" class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left outline-none"><i class="fa-solid fa-chart-pie"></i> Real-time Monitor</button>
+                    <button data-target="page-siswa" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none"><i class="fa-solid fa-graduation-cap"></i> Data Siswa</button>
+                    <button data-target="page-soal" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none"><i class="fa-solid fa-book-bookmark"></i> Bank Soal</button>
+                    <button data-target="page-setting" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none"><i class="fa-solid fa-sliders"></i> Pengaturan Ujian</button>
                 </nav>
             </div>
             <div class="text-[11px] text-slate-500 font-medium">Control Dashboard Engine v2.0</div>
@@ -49,191 +43,82 @@
                     <p class="text-xs text-slate-400" id="header-desc">Pantau pergerakan integritas siswa saat pengerjaan assessment</p>
                 </div>
                 <div class="flex gap-3">
-                    <button onclick="refreshData()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-rotate"></i> Sinkronisasi Data
-                    </button>
-                    <button onclick="exportNilai()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg">
-                        <i class="fa-solid fa-file-excel"></i> Ekspor Nilai
-                    </button>
+                    <button onclick="refreshData()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2"><i class="fa-solid fa-rotate"></i> Sinkronisasi Data</button>
+                    <button onclick="exportNilai()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg"><i class="fa-solid fa-file-excel"></i> Ekspor Nilai</button>
                 </div>
             </header>
 
             <div id="page-monitor" class="admin-page space-y-6">
                 <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Siswa Terdaftar</span>
-                        <h3 id="stat-total-siswa" class="text-3xl font-black text-white mt-1">0</h3>
-                    </div>
-                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sedang Ujian</span>
-                        <h3 id="stat-aktif" class="text-3xl font-black text-amber-400 mt-1">0</h3>
-                    </div>
-                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Selesai Submit</span>
-                        <h3 id="stat-selesai" class="text-3xl font-black text-emerald-400 mt-1">0</h3>
-                    </div>
-                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm border-l-2 border-l-rose-500">
-                        <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Total Kecurangan</span>
-                        <h3 id="stat-pelanggaran" class="text-3xl font-black text-rose-500 mt-1">0</h3>
-                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Siswa Terdaftar</span><h3 id="stat-total-siswa" class="text-3xl font-black text-white mt-1">0</h3></div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm"><span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sedang Ujian</span><h3 id="stat-aktif" class="text-3xl font-black text-amber-400 mt-1">0</h3></div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm"><span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Selesai Ujian</span><h3 id="stat-selesai" class="text-3xl font-black text-emerald-400 mt-1">0</h3></div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm border-l-2 border-l-rose-500"><span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Total Kecurangan</span><h3 id="stat-pelanggaran" class="text-3xl font-black text-rose-500 mt-1">0</h3></div>
                 </section>
 
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800 bg-slate-950/50">
-                        <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-pulse text-xs"></i> Pemantauan Status Langsung</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
-                                    <th class="p-4">NISN</th>
-                                    <th class="p-4">Nama Siswa</th>
-                                    <th class="p-4">Kelas</th>
-                                    <th class="p-4">Status</th>
-                                    <th class="p-4 text-center">Log Pelanggaran</th>
-                                    <th class="p-4 text-right">Nilai Akhir</th>
-                                </tr>
-                            </thead>
-                            <tbody id="live-table-body" class="divide-y divide-slate-800/50">
-                                <tr>
-                                    <td colspan="6" class="p-8 text-center text-slate-500 font-medium">Memuat data monitoring langsung...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="p-5 border-b border-slate-800 bg-slate-950/50"><h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-pulse text-xs"></i> Pemantauan Status Langsung</h3></div>
+                    <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">NISN</th><th class="p-4">Nama Siswa</th><th class="p-4">Kelas</th><th class="p-4">Status</th><th class="p-4 text-center">Log Pelanggaran</th><th class="p-4 text-right">Nilai Akhir</th></tr></thead><tbody id="live-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="6" class="p-8 text-center text-slate-500 font-medium">Memuat data monitoring langsung...</td></tr></tbody></table></div>
                 </section>
             </div>
 
             <div id="page-siswa" class="admin-page space-y-6 hidden">
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800">
-                        <h3 class="font-bold text-sm text-white"><i class="fa-solid fa-user-group text-indigo-400 mr-1"></i>Kredensial Autentikasi Peserta</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
-                                    <th class="p-4">NISN / Nomor Peserta</th>
-                                    <th class="p-4">Nama Lengkap</th>
-                                    <th class="p-4">Kelas</th>
-                                    <th class="p-4">PIN Autentikasi</th>
-                                    <th class="p-4">UUID Token Sesi Aktif</th>
-                                </tr>
-                            </thead>
-                            <tbody id="siswa-table-body" class="divide-y divide-slate-800/50">
-                                <tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat basis data siswa...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="p-5 border-b border-slate-800"><h3 class="font-bold text-sm text-white"><i class="fa-solid fa-user-group text-indigo-400 mr-1"></i>Kredensial Autentikasi Peserta</h3></div>
+                    <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">NISN</th><th class="p-4">Nama Lengkap</th><th class="p-4">Kelas</th><th class="p-4">PIN Login</th><th class="p-4">UUID Sesi</th></tr></thead><tbody id="siswa-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat basis data siswa...</td></tr></tbody></table></div>
                 </section>
             </div>
 
             <div id="page-soal" class="admin-page space-y-6 hidden">
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl">
-                    <div class="border-b border-slate-800 pb-3 mb-4">
-                        <h3 class="font-bold text-sm text-indigo-400 flex items-center gap-2">
-                            <i class="fa-solid fa-circle-plus"></i> Input Butir Soal Baru
-                        </h3>
-                        <p class="text-[11px] text-slate-400">Tambah data soal ujian langsung ke dalam sistem cloud database</p>
-                    </div>
-                    
+                    <div class="border-b border-slate-800 pb-3 mb-4"><h3 class="font-bold text-sm text-indigo-400 flex items-center gap-2"><i class="fa-solid fa-circle-plus"></i> Tambah Item Soal Distribusi</h3></div>
                     <form id="form-input-soal" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">ID Soal</label>
-                                <input type="text" id="add-id-soal" required placeholder="Contoh: INF02" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-semibold uppercase">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Mata Pelajaran</label>
-                                <input type="text" id="add-mapel" required placeholder="Contoh: Informatika" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-medium">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Skor Bobot</label>
-                                <input type="number" id="add-bobot" required min="1" value="5" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-mono font-bold">
-                            </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">ID Soal</label><input type="text" id="add-id-soal" required placeholder="INF01" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Mata Pelajaran</label><input type="text" id="add-mapel" required placeholder="Informatika" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Kelas</label><input type="text" id="add-target-kelas" required placeholder="X-Informatika-1" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Skor Bobot</label><input type="number" id="add-bobot" required value="5" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
                         </div>
-
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Isi Teks Pertanyaan</label>
-                            <textarea id="add-pertanyaan" required rows="2" placeholder="Tuliskan narasi pertanyaan di sini..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-medium"></textarea>
-                        </div>
-
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi A</label>
-                                <input type="text" id="add-opsi-a" required placeholder="Jawaban Opsi A" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi B</label>
-                                <input type="text" id="add-opsi-b" required placeholder="Jawaban Opsi B" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi C</label>
-                                <input type="text" id="add-opsi-c" placeholder="Jawaban Opsi C (Opsional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi D</label>
-                                <input type="text" id="add-opsi-d" placeholder="Jawaban Opsi D (Opsional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi E</label>
-                                <input type="text" id="add-opsi-e" placeholder="Jawaban Opsi E (Opsional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                            </div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target Alokasi Sesi</label><select id="add-sesi-soal" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"><option value="SESI_1">SESI 1</option><option value="SESI_2">SESI 2</option><option value="SESI_3">SESI 3</option></select></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kode Opsi Paket</label><select id="add-paket-soal" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"><option value="PAKET_A">PAKET A</option><option value="PAKET_B">PAKET B</option></select></div>
                         </div>
-
+                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Narasi Pertanyaan</label><textarea id="add-pertanyaan" required rows="2" placeholder="Tuliskan teks pertanyaan..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></textarea></div>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi A</label><input type="text" id="add-opsi-a" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi B</label><input type="text" id="add-opsi-b" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi C</label><input type="text" id="add-opsi-c" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi D</label><input type="text" id="add-opsi-d" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                            <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi E</label><input type="text" id="add-opsi-e" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                        </div>
                         <div class="flex justify-between items-center pt-2">
-                            <div class="w-1/3">
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Kunci Jawaban Benar</label>
-                                <select id="add-kunci" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-bold uppercase">
-                                    <option value="a">Opsi A</option>
-                                    <option value="b">Opsi B</option>
-                                    <option value="c">Opsi C</option>
-                                    <option value="d">Opsi D</option>
-                                    <option value="e">Opsi E</option>
-                                </select>
-                            </div>
-                            <button type="submit" id="btn-submit-soal" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg h-fit mt-4">
-                                <i class="fa-solid fa-floppy-disk"></i> Simpan ke Bank Soal
-                            </button>
+                            <div class="w-1/4"><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kunci Valid</label><select id="add-kunci" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs font-bold"><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option><option value="e">E</option></select></div>
+                            <button type="submit" id="btn-submit-soal" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-all"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Simpan ke Server</button>
                         </div>
                     </form>
                 </section>
 
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800">
-                        <h3 class="font-bold text-sm text-white"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Item Distribusi Soal Terkunci</h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
-                                    <th class="p-4">ID Referensi Soal</th>
-                                    <th class="p-4">Mata Pelajaran</th>
-                                    <th class="p-4 w-1/2">Redaksi Pertanyaan</th>
-                                    <th class="p-4 text-center">Kunci Valid</th>
-                                    <th class="p-4 text-right">Skor Bobot</th>
-                                </tr>
-                            </thead>
-                            <tbody id="soal-table-body" class="divide-y divide-slate-800/50">
-                                <tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat repositori bank soal...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="p-5 border-b border-slate-800"><h3 class="font-bold text-sm text-white"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Repositori Bank Soal</h3></div>
+                    <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">ID Soal</th><th class="p-4">Mata Pelajaran</th><th class="p-4 w-1/2">Pertanyaan</th><th class="p-4 text-center">Kunci</th><th class="p-4 text-right">Bobot</th></tr></thead><tbody id="soal-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat repositori bank soal...</td></tr></tbody></table></div>
                 </section>
             </div>
 
             <div id="page-setting" class="admin-page space-y-6 hidden">
-                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 space-y-4">
-                    <h3 class="font-bold text-base text-white">Konfigurasi Pengatur Batasan</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Alokasi Waktu Sesi (Menit)</label>
-                            <input type="number" value="90" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-semibold text-xs outline-none focus:border-indigo-500">
-                        </div>
-                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Batas Toleransi Kuncian Defleksi</label>
-                            <input type="number" value="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-semibold text-xs outline-none focus:border-indigo-500">
-                        </div>
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+                    <div class="border-b border-slate-800 pb-3">
+                        <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2"><i class="fa-solid fa-calendar-check"></i> Kontrol Gerbang Aktivasi Jadwal</h3>
+                        <p class="text-[11px] text-slate-400">Atur sesi aktif dan paket soal per kelas secara dinamis</p>
+                    </div>
+                    <form id="form-kontrol-jadwal" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                        <div><label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Kelas Target</label><input type="text" id="set-kelas" required placeholder="Contoh: X-Informatika-1" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                        <div><label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Set Sesi</label><select id="set-sesi" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-white text-xs font-bold"><option value="OFF">NONAKTIF (Kunci Gerbang)</option><option value="SESI_1">SESI 1</option><option value="SESI_2">SESI 2</option><option value="SESI_3">SESI 3</option></select></div>
+                        <div><label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Rilis Paket</label><select id="set-paket" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-white text-xs font-bold"><option value="PAKET_A">PAKET A</option><option value="PAKET_B">PAKET B</option></select></div>
+                        <button type="submit" id="btn-submit-jadwal" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-2.5 rounded-xl text-xs transition-all"><i class="fa-solid fa-toggle-on"></i> Terapkan Perubahan</button>
+                    </form>
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-bold text-slate-300">Status Gerbang Sesi Aktif Saat Ini</h4>
+                        <div class="overflow-x-auto border border-slate-800 rounded-2xl"><table class="w-full text-left text-xs border-collapse"><tr class="bg-slate-900 text-slate-400 border-b border-slate-800 font-semibold text-[10px]"><th class="p-3">Nama Kelas</th><th class="p-3">Sesi Aktif</th><th class="p-3">Rilis Paket</th><th class="p-3 text-right">Status</th></tr><tbody id="jadwal-table-body" class="divide-y divide-slate-800/40"><tr><td colspan="4" class="p-4 text-center text-slate-600">Memuat data kontrol aktif...</td></tr></tbody></table></div>
                     </div>
                 </section>
             </div>
