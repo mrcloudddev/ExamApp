@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbx5HqZ3DoSpr0DM9daLwsooa81K5I7hXBARVFdXzaYbaXl1VP6bP0FKbLiq_uPilKeYlw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyYbWRmO7qx7lRdGGYWSBrzq4UNV23gUu1sOQ_CQ831tzsBcV-aIP20HNt3G6kJMMVQ/exec";
 
 let sessionToken = "";
 let currentQuestion = null;
