@@ -1,7 +1,7 @@
 // ==========================================
 // CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfybyxX_PASTE_URL_WEB_APP_ANDA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwW73ER0bU9AIdMeyFCDmargiXZRDOq98We0JJk-F0o5xnjBFxPuUMwHvc7fTwa8GLluA/exec";
 
 // --- 1. CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
