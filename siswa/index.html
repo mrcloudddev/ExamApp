@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExamApp - Lembar Ujian Siswa</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased select-none">
+
+    <div id="blocker-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white p-6 hidden">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-6xl mb-4 animate-bounce"></i>
+        <h2 id="blocker-title" class="text-2xl font-bold mb-2">Peringatan Pelanggaran!</h2>
+        <p id="blocker-msg" class="text-center max-w-md text-slate-300 mb-6">Anda terdeteksi meninggalkan halaman ujian.</p>
+        <button id="btn-resume" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg transition-all shadow-lg">
+            Kembali ke Ujian (Kembali Fullscreen)
+        </button>
+    </div>
+
+    <div class="min-h-screen flex flex-col justify-between p-4 md:p-6">
+        <header class="max-w-4xl w-full mx-auto bg-white border-b border-slate-100 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-md shadow-indigo-200">E</div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">ExamApp Digital</h1>
+                    <p class="text-xs text-slate-400 font-medium tracking-wide">VOCATIONAL ASSESSMENT SYSTEM</p>
+                </div>
+            </div>
+            <div id="exam-timer" class="hidden items-center gap-2 bg-rose-50 border border-rose-100 text-rose-600 px-4 py-2 rounded-xl font-mono font-bold text-lg shadow-sm">
+                <i class="fa-regular fa-clock text-rose-500 animate-pulse"></i>
+                <span id="timer-countdown">00:00:00</span>
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-4xl w-full mx-auto flex items-center justify-center">
+            
+            <section id="login-page" class="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-100 shadow-xl shadow-slate-200/50 transition-all duration-300">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-black text-slate-900">Selamat Datang</h2>
+                    <p class="text-sm text-slate-400 mt-1">Silakan masuk menggunakan nomor peserta dan PIN Anda</p>
+                </div>
+                <form id="form-login" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nomor Peserta / NISN</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><i class="fa-solid fa-user"></i></span>
+                            <input type="text" id="input-nisn" required placeholder="Contoh: 0053124xxx" class="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 rounded-2xl pl-11 pr-4 py-3.5 transition-all outline-none text-sm font-semibold">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">PIN / Password</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="input-pin" required placeholder="••••••" class="w-full bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 rounded-2xl pl-11 pr-4 py-3.5 transition-all outline-none text-sm font-semibold tracking-widest">
+                        </div>
+                    </div>
+                    <button type="submit" id="btn-login" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 transition-all active:scale-[0.98] mt-2">
+                        Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </form>
+            </section>
+
+            <section id="instruction-page" class="w-full bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-xl shadow-slate-200/50 hidden">
+                <div class="border-b border-slate-100 pb-4 mb-6">
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-scroll text-indigo-600"></i> Peraturan & Tata Tertib Ujian</h2>
+                    <p class="text-xs text-slate-400 mt-1">Harap baca dengan teliti sebelum memulai assessment</p>
+                </div>
+                <div class="space-y-3 text-sm text-slate-600 mb-8 leading-relaxed">
+                    <div class="flex gap-3 bg-amber-50/70 border border-amber-100 rounded-xl p-3 text-amber-800 text-xs">
+                        <i class="fa-solid fa-circle-exclamation text-amber-600 mt-0.5 text-base"></i>
+                        <div><strong class="font-bold">Sistem Anti-Curang Aktif:</strong> Keluar dari mode Full-Screen atau membuka tab/aplikasi lain sebanyak <span class="font-bold underline">3 kali</span> akan menyebabkan lembar ujian langsung dikunci otomatis.</div>
+                    </div>
+                    <div class="flex items-start gap-3"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> Pastikan koneksi internet stabil selama proses pengerjaan.</div>
+                    <div class="flex items-start gap-3"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> Sistem menggunakan metode <span class="font-semibold text-slate-900">Fetch Parsial</span>; soal dikirim satu per satu dan acak langsung dari server.</div>
+                    <div class="flex items-start gap-3"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> Fungsi klik kanan, copy, paste, dan pintasan keyboard dinonaktifkan secara ketat.</div>
+                </div>
+                <button id="btn-start-exam" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-100 transition-all active:scale-[0.98] text-center block">
+                    <i class="fa-solid fa-expand mr-2"></i> Setujui & Mulai Ujian (Masuk Fullscreen)
+                </button>
+            </section>
+
+            <section id="exam-page" class="w-full flex flex-col md:flex-row gap-6 hidden">
+                <div class="flex-grow bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-xl shadow-slate-200/50">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                        <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide">Soal Nomor <span id="current-question-num">1</span></span>
+                        <span class="text-xs text-slate-400 font-medium">Bobot Soal: <span id="question-weight" class="font-bold text-slate-700">1</span></span>
+                    </div>
+                    
+                    <div id="question-container" class="space-y-4 mb-6">
+                        <p id="question-text" class="text-base font-medium text-slate-800 leading-relaxed">Memuat pertanyaan...</p>
+                        <div id="question-media" class="rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 hidden max-h-60 flex justify-center items-center p-2">
+                            </div>
+                    </div>
+
+                    <div id="options-container" class="space-y-3">
+                        </div>
+
+                    <div class="flex justify-between items-center mt-8 pt-4 border-t border-slate-100 gap-4">
+                        <button id="btn-doubtful" class="border border-slate-200 hover:bg-amber-50 hover:border-amber-200 text-slate-600 hover:text-amber-700 font-semibold px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-2">
+                            <i class="fa-regular fa-bookmark"></i> Ragu-ragu
+                        </button>
+                        <button id="btn-next" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-md shadow-indigo-100 flex items-center gap-2">
+                            Simpan & Lanjut <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-64 bg-white rounded-3xl p-6 border border-slate-100 shadow-xl shadow-slate-200/50 h-fit">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Navigasi Lembar Jawaban</h3>
+                    <div id="question-grid" class="grid grid-cols-5 gap-2">
+                        </div>
+                </div>
+            </section>
+
+            <section id="finish-page" class="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-100 shadow-xl shadow-slate-200/50 text-center hidden">
+                <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 shadow-sm">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-900">Ujian Selesai!</h2>
+                <p class="text-sm text-slate-500 mt-2 leading-relaxed">Seluruh lembar jawaban dan log data integritas Anda telah berhasil terekam aman di pangkalan data pusat server.</p>
+                <div class="my-6 bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs text-slate-400 space-y-1">
+                    <p>Nama: <span id="res-nama" class="font-bold text-slate-700">-</span></p>
+                    <p>Status Kelulusan: <span class="font-bold text-emerald-600">SUKSES TERKIRIM</span></p>
+                </div>
+                <p class="text-xs font-semibold text-slate-400">Anda sudah diperbolehkan keluar dari ruangan.</p>
+            </section>
+
+        </main>
+
+        <footer class="max-w-4xl w-full mx-auto text-center mt-6 text-xs text-slate-400 font-medium">
+            &copy; 2026 ExamApp Secure Assessment Engine v2.0 • Powered by Google Apps Script
+        </footer>
+    </div>
+</body>
+</html>
