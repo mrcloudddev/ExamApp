@@ -1,5 +1,5 @@
 // Ganti dengan URL Web App Google Apps Script Anda yang sudah di-deploy
-const API_URL = "https://script.google.com/macros/s/AKfycbxhvwnuRlhfg3cCL-KD_8UCFxiWpjbAUdOi8Nj5HnOXnOtR1Mf2FcYepBQHp_kLj8lVHg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwW73ER0bU9AIdMeyFCDmargiXZRDOq98We0JJk-F0o5xnjBFxPuUMwHvc7fTwa8GLluA/exec";
 
 let sessionToken = "";
 let currentQuestion = null;
