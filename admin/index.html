@@ -20,21 +20,30 @@
                     </div>
                 </div>
                 
-                <nav class="space-y-1.5">
-                    <a href="#" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all"><i class="fa-solid fa-chart-pie"></i> Real-time Monitor</a>
-                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-graduation-cap"></i> Data Siswa</a>
-                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-book-bookmark"></i> Bank Soal</a>
-                    <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all"><i class="fa-solid fa-sliders"></i> Pengaturan Ujian</a>
+                <nav class="space-y-1.5" id="sidebar-nav">
+                    <button data-target="page-monitor" class="nav-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left outline-none">
+                        <i class="fa-solid fa-chart-pie"></i> Real-time Monitor
+                    </button>
+                    <button data-target="page-siswa" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none">
+                        <i class="fa-solid fa-graduation-cap"></i> Data Siswa
+                    </button>
+                    <button data-target="page-soal" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none">
+                        <i class="fa-solid fa-book-bookmark"></i> Bank Soal
+                    </button>
+                    <button data-target="page-setting" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition-all text-left outline-none">
+                        <i class="fa-solid fa-sliders"></i> Pengaturan Ujian
+                    </button>
                 </nav>
             </div>
             <div class="text-[11px] text-slate-500 font-medium">Control Dashboard Engine v2.0</div>
         </aside>
 
         <main class="flex-grow p-6 md:p-8 space-y-6 overflow-y-auto">
+            
             <header class="flex justify-between items-center bg-slate-950/40 border border-slate-800 rounded-2xl p-4 backdrop-blur-md">
                 <div>
-                    <h1 class="text-xl font-black text-white">Monitoring Real-Time</h1>
-                    <p class="text-xs text-slate-400">Pantau pergerakan integritas siswa saat pengerjaan assessment</p>
+                    <h1 class="text-xl font-black text-white" id="header-title">Monitoring Real-Time</h1>
+                    <p class="text-xs text-slate-400" id="header-desc">Pantau pergerakan integritas siswa saat pengerjaan assessment</p>
                 </div>
                 <div class="flex gap-3">
                     <button onclick="refreshData()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2">
@@ -46,50 +55,91 @@
                 </div>
             </header>
 
-            <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Siswa Terdaftar</span>
-                    <h3 id="stat-total-siswa" class="text-3xl font-black text-white mt-1">0</h3>
-                </div>
-                <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                    <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sedang Aktif Ujian</span>
-                    <h3 id="stat-aktif" class="text-3xl font-black text-amber-400 mt-1">0</h3>
-                </div>
-                <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                    <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Selesai Submit</span>
-                    <h3 id="stat-selesai" class="text-3xl font-black text-emerald-400 mt-1">0</h3>
-                </div>
-                <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm border-l-2 border-l-rose-500">
-                    <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Total Kecurangan</span>
-                    <h3 id="stat-pelanggaran" class="text-3xl font-black text-rose-500 mt-1">0</h3>
-                </div>
-            </section>
+            <div id="page-monitor" class="admin-page space-y-6">
+                <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Siswa Terdaftar</span>
+                        <h3 id="stat-total-siswa" class="text-3xl font-black text-white mt-1">0</h3>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
+                        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sedang Aktif Ujian</span>
+                        <h3 id="stat-aktif" class="text-3xl font-black text-amber-400 mt-1">0</h3>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Selesai Submit</span>
+                        <h3 id="stat-selesai" class="text-3xl font-black text-emerald-400 mt-1">0</h3>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm border-l-2 border-l-rose-500">
+                        <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Total Kecurangan</span>
+                        <h3 id="stat-pelanggaran" class="text-3xl font-black text-rose-500 mt-1">0</h3>
+                    </div>
+                </section>
 
-            <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-                    <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-ping text-[8px]"></i> Aktivitas Peserta Aktif</h3>
-                    <input type="text" placeholder="Cari nama atau kelas..." class="bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-1.5 text-xs outline-none w-52 transition-all">
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs border-collapse">
-                        <thead>
-                            <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
-                                <th class="p-4">NISN</th>
-                                <th class="p-4">Nama Siswa</th>
-                                <th class="p-4">Kelas</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4 text-center">Pelanggaran Log</th>
-                                <th class="p-4 text-right">Nilai Akhir</th>
-                            </tr>
-                        </thead>
-                        <tbody id="live-table-body" class="divide-y divide-slate-800/50">
-                            <tr>
-                                <td colspan="6" class="p-8 text-center text-slate-500 font-medium">Memuat data monitoring langsung...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+                    <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                        <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-ping text-[8px]"></i> Aktivitas Peserta Aktif</h3>
+                        <input type="text" id="search-monitor" placeholder="Cari nama atau kelas..." class="bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-1.5 text-xs outline-none w-52 transition-all">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
+                                    <th class="p-4">NISN</th>
+                                    <th class="p-4">Nama Siswa</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4 text-center">Pelanggaran Log</th>
+                                    <th class="p-4 text-right">Nilai Akhir</th>
+                                </tr>
+                            </thead>
+                            <tbody id="live-table-body" class="divide-y divide-slate-800/50">
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-slate-500 font-medium">Memuat data monitoring langsung...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div id="page-siswa" class="admin-page space-y-6 hidden">
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6">
+                    <h3 class="font-bold text-base mb-2">Manajemen Data Siswa</h3>
+                    <p class="text-xs text-slate-400 mb-4">Seluruh data di bawah ini disinkronisasikan langsung dari tab <strong>`tb_siswa`</strong> pada Google Sheets master.</p>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-indigo-300">
+                        <i class="fa-solid fa-info-circle mr-1"></i> Pengubahan data siswa (tambah/hapus/edit PIN) direkomendasikan langsung dilakukan melalui Google Sheets agar manajemen basis data tetap satu pintu.
+                    </div>
+                </section>
+            </div>
+
+            <div id="page-soal" class="admin-page space-y-6 hidden">
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6">
+                    <h3 class="font-bold text-base mb-2">Bank Soal Terintegrasi</h3>
+                    <p class="text-xs text-slate-400 mb-4">Daftar item assessment yang tersimpan aman di dalam tab cloud server <strong>`tb_soal`</strong>.</p>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-emerald-400">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Sistem keamanan Fetch Parsial aktif: Soal dikunci di server dan dikirim satu per satu ke gawai siswa hanya saat diminta oleh sistem.
+                    </div>
+                </section>
+            </div>
+
+            <div id="page-setting" class="admin-page space-y-6 hidden">
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 space-y-4">
+                    <h3 class="font-bold text-base">Konfigurasi Lembar Assessment</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Durasi Waktu Ujian</label>
+                            <input type="number" value="90" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-xs outline-none focus:border-indigo-500">
+                            <span class="text-[10px] text-slate-500 mt-1 block">*Satuan dalam menit</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Batas Toleransi Blur / Keluar Fullscreen</label>
+                            <input type="number" value="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-xs outline-none focus:border-indigo-500">
+                            <span class="text-[10px] text-slate-500 mt-1 block">*Otomatis submit jika melanggar batas</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
         </main>
     </div>
 
