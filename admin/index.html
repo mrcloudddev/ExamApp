@@ -4,8 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ExamApp Admin - Control Center</title>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .nav-item.active {
+            background-color: #4f46e5;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-100 antialiased font-sans">
 
@@ -39,7 +53,6 @@
         </aside>
 
         <main class="flex-grow p-6 md:p-8 space-y-6 overflow-y-auto">
-            
             <header class="flex justify-between items-center bg-slate-950/40 border border-slate-800 rounded-2xl p-4 backdrop-blur-md">
                 <div>
                     <h1 class="text-xl font-black text-white" id="header-title">Monitoring Real-Time</h1>
@@ -49,8 +62,8 @@
                     <button onclick="refreshData()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2">
                         <i class="fa-solid fa-rotate"></i> Sinkronisasi Data
                     </button>
-                    <button onclick="exportNilai()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/30">
-                        <i class="fa-solid fa-file-excel"></i> Ekspor Nilai (.xlsx)
+                    <button onclick="exportNilai()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-file-excel"></i> Ekspor Nilai
                     </button>
                 </div>
             </header>
@@ -62,7 +75,7 @@
                         <h3 id="stat-total-siswa" class="text-3xl font-black text-white mt-1">0</h3>
                     </div>
                     <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
-                        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sedang Aktif Ujian</span>
+                        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Sedang Ujian</span>
                         <h3 id="stat-aktif" class="text-3xl font-black text-amber-400 mt-1">0</h3>
                     </div>
                     <div class="bg-slate-950/80 border border-slate-800/80 p-5 rounded-2xl shadow-sm">
@@ -76,9 +89,8 @@
                 </section>
 
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-                        <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-ping text-[8px]"></i> Aktivitas Peserta Aktif</h3>
-                        <input type="text" id="search-monitor" placeholder="Cari nama atau kelas..." class="bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-1.5 text-xs outline-none w-52 transition-all">
+                    <div class="p-5 border-b border-slate-800 bg-slate-950/50">
+                        <h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-pulse text-xs"></i> Pemantauan Status Langsung</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs border-collapse">
@@ -88,7 +100,7 @@
                                     <th class="p-4">Nama Siswa</th>
                                     <th class="p-4">Kelas</th>
                                     <th class="p-4">Status</th>
-                                    <th class="p-4 text-center">Pelanggaran Log</th>
+                                    <th class="p-4 text-center">Log Pelanggaran</th>
                                     <th class="p-4 text-right">Nilai Akhir</th>
                                 </tr>
                             </thead>
@@ -103,43 +115,68 @@
             </div>
 
             <div id="page-siswa" class="admin-page space-y-6 hidden">
-                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6">
-                    <h3 class="font-bold text-base mb-2">Manajemen Data Siswa</h3>
-                    <p class="text-xs text-slate-400 mb-4">Seluruh data di bawah ini disinkronisasikan langsung dari tab <strong>`tb_siswa`</strong> pada Google Sheets master.</p>
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-indigo-300">
-                        <i class="fa-solid fa-info-circle mr-1"></i> Pengubahan data siswa (tambah/hapus/edit PIN) direkomendasikan langsung dilakukan melalui Google Sheets agar manajemen basis data tetap satu pintu.
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+                    <div class="p-5 border-b border-slate-800">
+                        <h3 class="font-bold text-sm text-white"><i class="fa-solid fa-user-group text-indigo-400 mr-1"></i>Kredensial Autentikasi Peserta</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
+                                    <th class="p-4">NISN / Nomor Peserta</th>
+                                    <th class="p-4">Nama Lengkap</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4">PIN Autentikasi</th>
+                                    <th class="p-4">UUID Token Sesi Aktif</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siswa-table-body" class="divide-y divide-slate-800/50">
+                                <tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat basis data siswa...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             </div>
 
             <div id="page-soal" class="admin-page space-y-6 hidden">
-                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6">
-                    <h3 class="font-bold text-base mb-2">Bank Soal Terintegrasi</h3>
-                    <p class="text-xs text-slate-400 mb-4">Daftar item assessment yang tersimpan aman di dalam tab cloud server <strong>`tb_soal`</strong>.</p>
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl text-xs text-emerald-400">
-                        <i class="fa-solid fa-shield-halved mr-1"></i> Sistem keamanan Fetch Parsial aktif: Soal dikunci di server dan dikirim satu per satu ke gawai siswa hanya saat diminta oleh sistem.
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+                    <div class="p-5 border-b border-slate-800">
+                        <h3 class="font-bold text-sm text-white"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Item Distribusi Soal Terkunci</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[10px]">
+                                    <th class="p-4">ID Referensi Soal</th>
+                                    <th class="p-4">Mata Pelajaran</th>
+                                    <th class="p-4 w-1/2">Redaksi Pertanyaan</th>
+                                    <th class="p-4 text-center">Kunci Valid</th>
+                                    <th class="p-4 text-right">Skor Bobot</th>
+                                </tr>
+                            </thead>
+                            <tbody id="soal-table-body" class="divide-y divide-slate-800/50">
+                                <tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat repositori bank soal...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             </div>
 
             <div id="page-setting" class="admin-page space-y-6 hidden">
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 space-y-4">
-                    <h3 class="font-bold text-base">Konfigurasi Lembar Assessment</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <h3 class="font-bold text-base text-white">Konfigurasi Pengatur Batasan</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Durasi Waktu Ujian</label>
-                            <input type="number" value="90" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-xs outline-none focus:border-indigo-500">
-                            <span class="text-[10px] text-slate-500 mt-1 block">*Satuan dalam menit</span>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Alokasi Waktu Sesi (Menit)</label>
+                            <input type="number" value="90" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-semibold text-xs outline-none focus:border-indigo-500">
                         </div>
                         <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Batas Toleransi Blur / Keluar Fullscreen</label>
-                            <input type="number" value="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-xs outline-none focus:border-indigo-500">
-                            <span class="text-[10px] text-slate-500 mt-1 block">*Otomatis submit jika melanggar batas</span>
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Batas Toleransi Kuncian Defleksi</label>
+                            <input type="number" value="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-white font-semibold text-xs outline-none focus:border-indigo-500">
                         </div>
                     </div>
                 </section>
             </div>
-
         </main>
     </div>
 
