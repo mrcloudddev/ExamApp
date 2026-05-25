@@ -1,21 +1,24 @@
 // ==========================================
 // CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbwW73ER0bU9AIdMeyFCDmargiXZRDOq98We0JJk-F0o5xnjBFxPuUMwHvc7fTwa8GLluA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfybyxX_PASTE_URL_WEB_APP_ANDA/exec";
 
-// --- CLIENT ROUTER ENGINE ---
+// --- 1. CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
     button.addEventListener('click', () => {
         document.querySelectorAll('#sidebar-nav button').forEach(b => {
             b.classList.remove('active', 'text-white');
             b.classList.add('text-slate-400');
         });
+        // Perbaikan typo (.classList.add)
         button.classList.add('active', 'text-white');
         button.classList.remove('text-slate-400');
 
         const targetPage = button.getAttribute('data-target');
         document.querySelectorAll('.admin-page').forEach(page => page.classList.add('hidden'));
-        document.getElementById(targetPage).classList.remove('hidden');
+        
+        const targetEl = document.getElementById(targetPage);
+        if (targetEl) targetEl.classList.remove('hidden');
 
         const titleMap = {
             'page-monitor': { t: 'Monitoring Real-Time', d: 'Pantau pergerakan integritas siswa saat pengerjaan assessment' },
@@ -23,18 +26,23 @@ document.querySelectorAll('#sidebar-nav button').forEach(button => {
             'page-soal': { t: 'Bank Soal Pusat', d: 'Kelola butir pertanyaan, pilihan opsi ganda, bobot skoring, dan kunci jawaban' },
             'page-setting': { t: 'Pengaturan Parameter', d: 'Atur token global, durasi hitung mundur, dan regulasi sistem anti-curang' }
         };
-        document.getElementById('header-title').innerText = titleMap[targetPage].t;
-        document.getElementById('header-desc').innerText = titleMap[targetPage].d;
+        
+        if (titleMap[targetPage]) {
+            document.getElementById('header-title').innerText = titleMap[targetPage].t;
+            document.getElementById('header-desc').innerText = titleMap[targetPage].d;
+        }
     });
 });
 
-// --- LIVE ENGINE ENGINE ---
+// --- 2. LIVE DATA ENGINE ---
 function windowLoadHandler() {
     refreshData();
-    setInterval(refreshData, 10000); // Polling otomatis setiap 10 detik
+    setInterval(refreshData, 10000); // Sinkronisasi otomatis tiap 10 detik
 }
 
 async function refreshData() {
+    if (API_URL.includes("PASTIKAN_URL_DEPLOY")) return;
+    
     try {
         const response = await fetch(`${API_URL}?action=getAdminData`);
         const data = await response.json();
@@ -47,25 +55,24 @@ async function refreshData() {
         }
     } catch (err) {
         console.error("Gagal melakukan sinkronisasi data stream: ", err);
-        document.getElementById('live-table-body').innerHTML = `
-            <tr>
-                <td colspan="6" class="p-8 text-center text-rose-400 font-bold">
-                    <i class="fa-solid fa-circle-exclamation mr-1"></i> Gagal Sinkronisasi Basis Data. Periksa Setelan Deployment / URL Web App!
-                </td>
-            </tr>`;
+        const failHTML = `<tr><td colspan="6" class="p-8 text-center text-rose-400 font-bold"><i class="fa-solid fa-circle-exclamation mr-1"></i> Gagal Sinkronisasi Basis Data.</td></tr>`;
+        if(document.getElementById('live-table-body')) document.getElementById('live-table-body').innerHTML = failHTML;
     }
 }
 
 function updateStats(stats) {
-    document.getElementById('stat-total-siswa').innerText = stats.totalSiswa || 0;
-    document.getElementById('stat-aktif').innerText = stats.aktif || 0;
-    document.getElementById('stat-selesai').innerText = stats.selesai || 0;
-    document.getElementById('stat-pelanggaran').innerText = stats.totalPelanggaran || 0;
+    if (!stats) return;
+    if(document.getElementById('stat-total-siswa')) document.getElementById('stat-total-siswa').innerText = stats.totalSiswa || 0;
+    if(document.getElementById('stat-aktif')) document.getElementById('stat-aktif').innerText = stats.aktif || 0;
+    if(document.getElementById('stat-selesai')) document.getElementById('stat-selesai').innerText = stats.selesai || 0;
+    if(document.getElementById('stat-pelanggaran')) document.getElementById('stat-pelanggaran').innerText = stats.totalPelanggaran || 0;
 }
 
 function renderLiveTable(list) {
     const tbody = document.getElementById('live-table-body');
+    if (!tbody) return;
     tbody.innerHTML = '';
+    
     if (!list || list.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">Tabel monitoring kosong.</td></tr>`;
         return;
@@ -92,7 +99,11 @@ function renderSiswaTable(list) {
     const tbody = document.getElementById('siswa-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (!list || list.length === 0) return;
+    
+    if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">Tidak ada data siswa terdaftar.</td></tr>`;
+        return;
+    }
     list.forEach(item => {
         let tr = document.createElement('tr');
         tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 transition-all";
@@ -111,7 +122,11 @@ function renderSoalTable(list) {
     const tbody = document.getElementById('soal-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (!list || list.length === 0) return;
+    
+    if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Tidak ada butir soal ditemukan di tb_soal Google Sheets Anda.</td></tr>`;
+        return;
+    }
     list.forEach(item => {
         let tr = document.createElement('tr');
         tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 transition-all";
