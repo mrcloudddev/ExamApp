@@ -9,17 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .nav-item.active {
-            background-color: #4f46e5;
-            color: #ffffff;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-        }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #020617; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-900 text-slate-100 antialiased font-sans">
 
@@ -139,6 +129,76 @@
             </div>
 
             <div id="page-soal" class="admin-page space-y-6 hidden">
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                    <div class="border-b border-slate-800 pb-3 mb-4">
+                        <h3 class="font-bold text-sm text-indigo-400 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-plus"></i> Input Butir Soal Baru
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Tambah data soal ujian langsung ke dalam sistem cloud database</p>
+                    </div>
+                    
+                    <form id="form-input-soal" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">ID Soal</label>
+                                <input type="text" id="add-id-soal" required placeholder="Contoh: INF02" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-semibold uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Mata Pelajaran</label>
+                                <input type="text" id="add-mapel" required placeholder="Contoh: Informatika" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Skor Bobot</label>
+                                <input type="number" id="add-bobot" required min="1" value="5" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-mono font-bold">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Isi Teks Pertanyaan</label>
+                            <textarea id="add-pertanyaan" required rows="2" placeholder="Tuliskan narasi pertanyaan di sini..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-medium"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi A</label>
+                                <input type="text" id="add-opsi-a" required placeholder="Jawaban Opsi A" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi B</label>
+                                <input type="text" id="add-opsi-b" required placeholder="Jawaban Opsi B" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi C</label>
+                                <input type="text" id="add-opsi-c" placeholder="Jawaban Opsi C (Opsional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi D</label>
+                                <input type="text" id="add-opsi-d" placeholder="Jawaban Opsi D (Opsional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Pilihan Opsi E</label>
+                                <input type="text" id="add-opsi-e" placeholder="Jawaban Opsi E (Opsional)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2">
+                            <div class="w-1/3">
+                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Kunci Jawaban Benar</label>
+                                <select id="add-kunci" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-white text-xs outline-none focus:border-indigo-500 font-bold uppercase">
+                                    <option value="a">Opsi A</option>
+                                    <option value="b">Opsi B</option>
+                                    <option value="c">Opsi C</option>
+                                    <option value="d">Opsi D</option>
+                                    <option value="e">Opsi E</option>
+                                </select>
+                            </div>
+                            <button type="submit" id="btn-submit-soal" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg h-fit mt-4">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan ke Bank Soal
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
                     <div class="p-5 border-b border-slate-800">
                         <h3 class="font-bold text-sm text-white"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Item Distribusi Soal Terkunci</h3>
