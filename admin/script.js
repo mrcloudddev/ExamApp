@@ -1,23 +1,22 @@
-// ISI DENGAN URL WEB APP GOOGLE APPS SCRIPT ASLI ANDA
-const API_URL = "https://script.google.com/macros/s/AKfycbwW73ER0bU9AIdMeyFCDmargiXZRDOq98We0JJk-F0o5xnjBFxPuUMwHvc7fTwa8GLluA/exec"; 
+// ==========================================
+// CONFIG: PASTE URL WEB APP APPS SCRIPT ANDA
+// ==========================================
+const API_URL = "https://script.google.com/macros/s/AKfycbwW73ER0bU9AIdMeyFCDmargiXZRDOq98We0JJk-F0o5xnjBFxPuUMwHvc7fTwa8GLluA/exec";
 
-// --- ENGINE TAB NAVIGASI ---
+// --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
     button.addEventListener('click', () => {
-        // Ganti class active pada tombol menu samping
         document.querySelectorAll('#sidebar-nav button').forEach(b => {
             b.classList.remove('active', 'text-white');
             b.classList.add('text-slate-400');
         });
-        button.add('active', 'text-white');
+        button.classList.add('active', 'text-white');
         button.classList.remove('text-slate-400');
 
-        // Sembunyikan semua halaman admin, tampilkan yang dipilih
         const targetPage = button.getAttribute('data-target');
         document.querySelectorAll('.admin-page').forEach(page => page.classList.add('hidden'));
         document.getElementById(targetPage).classList.remove('hidden');
 
-        // Dinamis Ubah Teks Header Judul atas sesuai menu
         const titleMap = {
             'page-monitor': { t: 'Monitoring Real-Time', d: 'Pantau pergerakan integritas siswa saat pengerjaan assessment' },
             'page-siswa': { t: 'Database Siswa', d: 'Manajemen data nomor peserta, PIN login, dan status kehadiran kelas' },
@@ -29,32 +28,29 @@ document.querySelectorAll('#sidebar-nav button').forEach(button => {
     });
 });
 
-// --- CLIENT-SIDE REAL-TIME DATA FETCH POLLING ---
+// --- LIVE ENGINE ENGINE ---
 function windowLoadHandler() {
     refreshData();
-    setInterval(refreshData, 8000); // Sinkronisasi otomatis data tiap 8 detik
+    setInterval(refreshData, 10000); // Polling otomatis setiap 10 detik
 }
 
 async function refreshData() {
-    if (API_URL.includes("PASTIKAN_URL_DEPLOY")) {
-        console.warn("API_URL belum dikonfigurasi dengan URL Apps Script Anda!");
-        return;
-    }
-
     try {
         const response = await fetch(`${API_URL}?action=getAdminData`);
         const data = await response.json();
         
-        if(data) {
+        if (data) {
             updateStats(data.stats);
             renderLiveTable(data.siswaList);
+            renderSiswaTable(data.siswaList);
+            renderSoalTable(data.soalList);
         }
     } catch (err) {
-        console.error("Gagal melakukan penarikan data dashboard master: ", err);
+        console.error("Gagal melakukan sinkronisasi data stream: ", err);
         document.getElementById('live-table-body').innerHTML = `
             <tr>
-                <td colspan="6" class="p-8 text-center text-rose-400 font-medium">
-                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Gagal terhubung ke Apps Script. Periksa URL API atau Hak Akses Deployment!
+                <td colspan="6" class="p-8 text-center text-rose-400 font-bold">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i> Gagal Sinkronisasi Basis Data. Periksa Setelan Deployment / URL Web App!
                 </td>
             </tr>`;
     }
@@ -70,39 +66,68 @@ function updateStats(stats) {
 function renderLiveTable(list) {
     const tbody = document.getElementById('live-table-body');
     tbody.innerHTML = '';
-
-    if(!list || list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">Tidak ada data siswa ditemukan di tb_siswa.</td></tr>`;
+    if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">Tabel monitoring kosong.</td></tr>`;
         return;
     }
-
     list.forEach(item => {
-        let statusBadge = '';
-        if(item.status === "Belum") {
-            statusBadge = `<span class="bg-slate-800 text-slate-400 px-2 py-1 rounded-md font-bold text-[10px]">BELUM MULAI</span>`;
-        } else if(item.status === "Aktif") {
-            statusBadge = `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded-md font-bold text-[10px] animate-pulse">SEDANG UJIAN</span>`;
-        } else if(item.status === "Selesai") {
-            statusBadge = `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-md font-bold text-[10px]">SELESAI</span>`;
-        }
-
+        let stateBadge = item.status === 'Belum' ? `<span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold text-[10px]">BELUM MULAI</span>` :
+                         item.status === 'Aktif' ? `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-bold text-[10px] animate-pulse">UJIAN</span>` :
+                                                   `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold text-[10px]">SELESAI</span>`;
         let tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-900/30 transition-all border-b border-slate-800/30";
+        tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 transition-all";
         tr.innerHTML = `
-            <td class="p-4 font-mono font-semibold text-slate-400">${item.nisn}</td>
+            <td class="p-4 font-mono text-slate-400 font-medium">${item.nisn}</td>
             <td class="p-4 font-bold text-white">${item.nama}</td>
             <td class="p-4 text-slate-300">${item.kelas}</td>
-            <td class="p-4">${statusBadge}</td>
-            <td class="p-4 text-center font-bold ${item.pelanggaran > 0 ? 'text-rose-400 bg-rose-500/5' : 'text-slate-500'}">${item.pelanggaran}x Melanggar</td>
-            <td class="p-4 text-right font-mono font-black text-sm ${item.status === 'Selesai' ? 'text-indigo-400' : 'text-slate-600'}">${item.nilai !== null ? item.nilai : '-'}</td>
+            <td class="p-4">${stateBadge}</td>
+            <td class="p-4 text-center font-bold ${item.pelanggaran > 0 ? 'text-rose-400 bg-rose-500/10' : 'text-slate-500'}">${item.pelanggaran}x Melanggar</td>
+            <td class="p-4 text-right font-mono font-black text-indigo-400 text-sm">${item.nilai !== null ? item.nilai : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderSiswaTable(list) {
+    const tbody = document.getElementById('siswa-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!list || list.length === 0) return;
+    list.forEach(item => {
+        let tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 transition-all";
+        tr.innerHTML = `
+            <td class="p-4 font-mono text-indigo-400 font-bold">${item.nisn}</td>
+            <td class="p-4 font-bold text-white">${item.nama}</td>
+            <td class="p-4 text-slate-300">${item.kelas}</td>
+            <td class="p-4 font-mono text-slate-400">${item.pin}</td>
+            <td class="p-4 font-mono text-[10px] text-slate-500 truncate max-w-[140px]">${item.token || 'Tidak ada sesi aktif'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderSoalTable(list) {
+    const tbody = document.getElementById('soal-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!list || list.length === 0) return;
+    list.forEach(item => {
+        let tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 transition-all";
+        tr.innerHTML = `
+            <td class="p-4 font-mono font-bold text-emerald-400">${item.id_soal}</td>
+            <td class="p-4 text-slate-400 font-semibold">${item.mapel}</td>
+            <td class="p-4 text-white font-medium truncate max-w-xs">${item.pertanyaan}</td>
+            <td class="p-4 text-center"><span class="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-bold px-2 py-0.5 rounded uppercase">${item.kunci}</span></td>
+            <td class="p-4 text-right font-mono text-slate-300 font-bold">${item.bobot}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
 function exportNilai() {
-    if (API_URL.includes("PASTIKAN_URL_DEPLOY")) return;
-    alert("Proses otomatisasi ekspor sedang mengeksekusi Google Apps Script Spreadsheet Compiler.");
+    alert("Mengalihkan ke Compiler Unduhan Sheets Master...");
     window.open(`${API_URL}?action=exportExcel`, '_blank');
 }
 
