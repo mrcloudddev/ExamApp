@@ -1,5 +1,5 @@
 // ISI DENGAN URL WEB APP GOOGLE APPS SCRIPT ASLI ANDA
-const API_URL = "https://script.google.com/macros/s/AKfycbxTMGyYdqgPFwgcEeWkVPCSCRVXSvHBgxUX4Q557nH3aSds2LpNwtMzEbKq-q4p5t9tsQ/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbyCBRnEcD-5EQDrhQWgHiQDNJPIJt4IJomMjrJewGNO4IaY_CxGCJW5lI6cLrPfCxUe0g/exec"; 
 
 // --- ENGINE TAB NAVIGASI ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
