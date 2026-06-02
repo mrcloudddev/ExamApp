@@ -9,22 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-        ::selection { background: transparent; }
-        input::selection { background: #e0e7ff; }
-        .option-card.selected {
-            border-color: #4f46e5 !important;
-            background-color: #f5f3ff !important;
-            box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.1) !important;
-        }
-        section { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased select-none">
 
@@ -97,37 +82,39 @@
                 </button>
             </section>
 
-            <section id="exam-page" class="w-full flex flex-col md:flex-row gap-6 hidden">
-                <div class="flex-grow bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-xl shadow-slate-200/50">
-                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                        <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide">Soal Nomor <span id="current-question-num">1</span></span>
-                        <span class="text-xs text-slate-400 font-medium">Bobot Soal: <span id="question-weight" class="font-bold text-slate-700">1</span></span>
-                    </div>
-                    
-                    <div id="question-container" class="space-y-4 mb-6">
-                        <p id="question-text" class="text-base font-medium text-slate-800 leading-relaxed">Memuat pertanyaan...</p>
+            <section id="exam-page" class="w-full flex flex-col md:flex-row gap-4 md:gap-6 hidden">
+                <div class="flex-1 bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 border border-slate-100 shadow-sm md:shadow-xl flex flex-col justify-between min-w-0">
+                    <div>
+                        <div class="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
+                            <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide">Soal Nomor <span id="current-question-num">-</span></span>
+                            <span class="text-xs text-slate-400 font-medium bg-slate-100 px-3 py-1.5 rounded-lg">Bobot Soal: <span id="question-weight" class="font-bold text-slate-700">-</span></span>
+                        </div>
+                        
+                        <div id="question-container" class="space-y-4 mb-6">
+                            <p id="question-text" class="text-sm md:text-base font-medium text-slate-800 leading-relaxed break-words">Memuat pertanyaan...</p>
+                        </div>
+
+                        <div id="options-container" class="space-y-3"></div>
                     </div>
 
-                    <div id="options-container" class="space-y-3"></div>
-
-                    <div class="flex justify-between items-center mt-8 pt-4 border-t border-slate-100 gap-4">
-                        <button id="btn-prev" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-2">
+                    <div class="flex flex-wrap sm:flex-nowrap justify-between items-center mt-8 pt-4 border-t border-slate-100 gap-2 sm:gap-4">
+                        <button id="btn-prev" class="flex-1 sm:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2">
                             <i class="fa-solid fa-chevron-left text-xs"></i> Sebelumnya
                         </button>
-                        <button id="btn-doubt" class="border border-amber-200 bg-amber-50 text-amber-700 font-bold px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-2">
+                        <button id="btn-doubt" class="flex-1 sm:flex-none border border-amber-200 bg-amber-50 text-amber-700 font-bold px-4 py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2">
                             <i class="fa-regular fa-bookmark"></i> Ragu-Ragu
                         </button>
-                        <button id="btn-next" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-md flex items-center gap-2">
+                        <button id="btn-next" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2">
                             Selanjutnya <i class="fa-solid fa-chevron-right text-xs"></i>
                         </button>
                     </div>
                 </div>
 
-                <div class="w-full md:w-64 bg-white rounded-3xl p-6 border border-slate-100 shadow-xl h-fit">
+                <div class="w-full md:w-64 bg-white rounded-2xl md:rounded-3xl p-5 md:p-6 border border-slate-100 shadow-sm md:shadow-xl h-fit">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1">
-                        <i class="fa-solid fa-th-large"></i> Indikator Navigasi
+                        <i class="fa-solid fa-th-large text-indigo-500"></i> Indikator Navigasi
                     </h3>
-                    <div id="question-grid" class="grid grid-cols-4 gap-2"></div>
+                    <div id="question-grid" class="grid grid-cols-5 md:grid-cols-4 gap-2.5 max-h-52 md:max-h-none overflow-y-auto p-1 custom-scrollbar"></div>
                     <div class="mt-6 pt-4 border-t border-slate-100">
                         <button id="btn-finish-trigger" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-lg hidden">
                             <i class="fa-solid fa-check-double"></i> Selesai & Kirim Ujian
