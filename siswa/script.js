@@ -69,6 +69,8 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         if (data.status === "success") {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
+            // Simpan nama asli siswa yang ditarik dari DB Apps Script ke LocalStorage
+            localStorage.setItem('namaSiswa', data.nama || "Peserta Ujian");
             switchPage('instruction');
         } else {
             alert(data.message || "Kredensial Anda salah!");
@@ -108,7 +110,8 @@ function renderCbtDashboard() {
     const currentQuestion = examQuestions[activeIndex];
     
     document.getElementById('current-question-num').innerText = activeIndex + 1;
-    document.getElementById('question-weight').innerText = currentQuestion.bobot;
+    // Poin 1 Perbaikan: Mengambil nilai bobot real secara dinamis dari API paket soal
+    document.getElementById('question-weight').innerText = currentQuestion.bobot || 0;
     document.getElementById('question-text').innerText = currentQuestion.pertanyaan;
 
     const optContainer = document.getElementById('options-container');
@@ -145,13 +148,14 @@ function renderGridIndicators() {
     const grid = document.getElementById('question-grid'); grid.innerHTML = '';
     examQuestions.forEach((q, idx) => {
         const box = document.createElement('button');
-        box.className = "w-10 h-10 rounded-xl font-bold text-xs flex items-center justify-center transition-all ";
+        // Poin 3 Perbaikan: Ukuran fleksibel aspect-square, aman di HP, tablet, dan PC
+        box.className = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
         box.innerText = idx + 1;
 
-        if (idx === activeIndex) box.className += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100";
-        else if (doubtfulQuestions[q.id_soal]) box.className += "bg-amber-500 text-white";
-        else if (studentAnswers[q.id_soal]) box.className += "bg-emerald-600 text-white";
-        else box.className += "bg-slate-100 text-slate-600 hover:bg-slate-200";
+        if (idx === activeIndex) box.className += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100 border-indigo-600";
+        else if (doubtfulQuestions[q.id_soal]) box.className += "bg-amber-500 text-white border-amber-500";
+        else if (studentAnswers[q.id_soal]) box.className += "bg-emerald-600 text-white border-emerald-600";
+        else box.className += "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200";
 
         box.onclick = () => { activeIndex = idx; renderCbtDashboard(); };
         grid.appendChild(box);
@@ -171,8 +175,8 @@ document.getElementById('btn-finish-trigger').addEventListener('click', async ()
         const nisn = localStorage.getItem('nisn');
         try {
             await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
-            finishExam(localStorage.getItem('nisn'));
-        } catch(e) { finishExam("-"); }
+            finishExam();
+        } catch(e) { finishExam(); }
     }
 });
 
@@ -187,5 +191,16 @@ function startTimer(durationSeconds) {
     }, 1000);
 }
 async function logViolationToAPI(type) { const nisn = localStorage.getItem('nisn'); navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type })); }
-function autoSubmitExam(reason) { clearInterval(timerInterval); if (document.fullscreenElement) document.exitFullscreen(); alert(`Ujian selesai: ${reason}`); finishExam("-"); }
-function finishExam(nama) { clearInterval(timerInterval); if (document.fullscreenElement) document.exitFullscreen(); document.getElementById('exam-timer').classList.add('hidden'); document.getElementById('res-nama').innerText = nama; switchPage('finish'); }
+function autoSubmitExam(reason) { clearInterval(timerInterval); if (document.fullscreenElement) document.exitFullscreen(); alert(`Ujian selesai: ${reason}`); finishExam(); }
+
+function finishExam() { 
+    clearInterval(timerInterval); 
+    if (document.fullscreenElement) document.exitFullscreen(); 
+    document.getElementById('exam-timer').classList.add('hidden'); 
+    
+    // Poin 2 Perbaikan: Menampilkan Nama Asli Siswa dari LocalStorage di halaman sukses, bukan nomor/ID lagi
+    const namaTerdaftar = localStorage.getItem('namaSiswa') || "Peserta Ujian";
+    document.getElementById('res-nama').innerText = namaTerdaftar; 
+    
+    switchPage('finish'); 
+}
