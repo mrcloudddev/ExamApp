@@ -72,7 +72,7 @@
                 <div class="space-y-3 text-sm text-slate-600 mb-8 leading-relaxed">
                     <div class="flex gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3 text-amber-800 text-xs">
                         <i class="fa-solid fa-circle-exclamation text-amber-600 mt-0.5 text-base"></i>
-                        <div><strong>Sistem Anti-Nyontek Multi-Kelas Aktif:</strong> Anda wajib mengerjakan dalam mode fullscreen penuh. Batas toleransi blur/pindah tab aplikasi maksimal adalah <span class="font-bold underline">3 kali</span> sebelum sistem mengunci otomatis.</div>
+                        <div><strong>Sistem Anti-Nyontek Multi-Kelas Active:</strong> Anda wajib mengerjakan dalam mode fullscreen penuh. Batas toleransi blur/pindah tab aplikasi maksimal adalah <span class="font-bold underline">3 kali</span> sebelum sistem mengunci otomatis.</div>
                     </div>
                     <div class="flex items-start gap-3"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> Soal yang dirilis akan otomatis mendeteksi jadwal sesi kelas Anda saat ini.</div>
                     <div class="flex items-start gap-3"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> Mode CBT Aktif: Anda diizinkan berpindah nomor soal, mengoreksi, serta menandai ragu-ragu.</div>
@@ -87,7 +87,7 @@
                     <div>
                         <div class="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
                             <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide">Soal Nomor <span id="current-question-num">-</span></span>
-                            </div>
+                        </div>
                         
                         <div id="question-container" class="space-y-4 mb-6">
                             <p id="question-text" class="text-sm md:text-base font-medium text-slate-800 leading-relaxed break-words">Memuat pertanyaan...</p>
@@ -114,10 +114,14 @@
                         <i class="fa-solid fa-th-large text-indigo-500"></i> Indikator Navigasi
                     </h3>
                     <div id="question-grid" class="grid grid-cols-5 md:grid-cols-4 gap-2.5 max-h-52 md:max-h-none overflow-y-auto p-1 custom-scrollbar"></div>
-                    <div class="mt-6 pt-4 border-t border-slate-100">
-                        <button id="btn-finish-trigger" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-lg hidden">
-                            <i class="fa-solid fa-check-double"></i> Selesai & Kirim Ujian
+                    
+                    <div class="mt-6 pt-4 border-t border-slate-100 space-y-2">
+                        <button id="btn-finish-trigger" disabled class="w-full bg-slate-300 text-slate-500 font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-not-allowed select-none">
+                            <i class="fa-solid fa-lock text-[10px]"></i> Selesai & Kirim Ujian
                         </button>
+                        <p id="finish-notice" class="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 font-medium px-2.5 py-2 rounded-lg leading-normal text-center">
+                            <i class="fa-solid fa-circle-info mr-0.5"></i> Tombol selesai baru aktif pada 20 menit terakhir ujian.
+                        </p>
                     </div>
                 </div>
             </section>
