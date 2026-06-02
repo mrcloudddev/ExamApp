@@ -86,7 +86,7 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
-        startTimer(60 * 90); // Alokasi waktu default (90 Menit)
+        startTimer(60 * 60); // Alokasi waktu default (90 Menit)
         fetchExamPackage();
     }).catch(() => alert("Gagal mengaktifkan modul fullscreen."));
 });
