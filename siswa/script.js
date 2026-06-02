@@ -8,7 +8,7 @@ let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
-let isFinishingExam = false; // Flag pengaman agar pemutusan fullscreen di akhir pengerjaan tidak terdeteksi curang
+let isFinishingExam = false; // Flag status pengaman agar pemutusan fullscreen di akhir pengerjaan tidak terdeteksi curang
 
 const pages = {
     login: document.getElementById('login-page'),
@@ -73,7 +73,6 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         if (data.status === "success") {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
-            // Menyimpan nama asli dari database, jika kosong fallback menggunakan ID login/NISN
             localStorage.setItem('namaSiswa', data.nama || nisn);
             switchPage('instruction');
         } else {
@@ -114,7 +113,6 @@ function renderCbtDashboard() {
     const currentQuestion = examQuestions[activeIndex];
     
     document.getElementById('current-question-num').innerText = activeIndex + 1;
-    // Rendering pengisian teks bobot soal telah dihapus sepenuhnya
     document.getElementById('question-text').innerText = currentQuestion.pertanyaan;
 
     const optContainer = document.getElementById('options-container');
@@ -172,8 +170,9 @@ function saveAnswerToCloud(idSoal, jawaban) {
 }
 
 document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
+    // Tombol hanya mengeksekusi ini jika sudah tidak disabled (diaktifkan oleh timer)
     if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
-        isFinishingExam = true; // Konstatus aman: Siswa keluar fullscreen secara resmi tanpa kena penalti
+        isFinishingExam = true; 
         const nisn = localStorage.getItem('nisn');
         try {
             await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
@@ -188,6 +187,7 @@ function switchPage(pageName) { Object.values(pages).forEach(p => p.classList.ad
 function startTimer(durationSeconds) {
     let timeLeft = durationSeconds;
     const btnFinish = document.getElementById('btn-finish-trigger');
+    const noticeFinish = document.getElementById('finish-notice');
     
     timerInterval = setInterval(() => {
         let hrs = Math.floor(timeLeft / 3600); 
@@ -196,11 +196,22 @@ function startTimer(durationSeconds) {
         
         document.getElementById('timer-countdown').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
         
-        // Aturan: Tombol selesai baru akan muncul jika sisa waktu <= 20 menit (1200 detik)
+        // Aturan Modifikasi: Tombol selesai diaktifkan penuh ketika sisa waktu <= 20 menit (1200 detik)
         if (timeLeft <= 1200) {
-            btnFinish.classList.remove('hidden');
+            btnFinish.removeAttribute('disabled');
+            // Ganti style tombol jadi merah active khas ExamApp
+            btnFinish.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg";
+            btnFinish.innerHTML = `<i class="fa-solid fa-check-double"></i> Selesai & Kirim Ujian`;
+            
+            // Sembunyikan notifikasi instruksi karena tombol sudah terbuka
+            noticeFinish.classList.add('hidden');
         } else {
-            btnFinish.classList.add('hidden');
+            // Tetap dikunci jika waktu masih panjang
+            btnFinish.setAttribute('disabled', 'true');
+            btnFinish.className = "w-full bg-slate-300 text-slate-500 font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-not-allowed select-none";
+            btnFinish.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Selesai & Kirim Ujian`;
+            
+            noticeFinish.classList.remove('hidden');
         }
         
         if (--timeLeft < 0) { 
@@ -235,7 +246,6 @@ function finishExam() {
     
     document.getElementById('exam-timer').classList.add('hidden'); 
     
-    // Menampilkan nama lengkap yang tersimpan, bukan ID/Nomor peserta
     const namaTerdaftar = localStorage.getItem('namaSiswa');
     document.getElementById('res-nama').innerText = namaTerdaftar; 
     
