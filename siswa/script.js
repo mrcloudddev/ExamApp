@@ -8,6 +8,7 @@ let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
+let isFinishingExam = false; // Flag pengaman agar pemutusan fullscreen di akhir pengerjaan tidak terdeteksi curang
 
 const pages = {
     login: document.getElementById('login-page'),
@@ -26,18 +27,21 @@ document.addEventListener('keydown', e => {
 });
 
 window.addEventListener('blur', () => {
+    if (isFinishingExam) return; // Jika tombol selesai diklik, abaikan sistem deteksi pelanggaran
     if (sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
         triggerViolation("Pindah Tab / Aplikasi (Window Blur)");
     }
 });
 
 document.addEventListener('fullscreenchange', () => {
+    if (isFinishingExam) return; // Jika tombol selesai diklik, abaikan sistem deteksi pelanggaran
     if (!document.fullscreenElement && sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
         triggerViolation("Keluar dari Mode Fullscreen");
     }
 });
 
 function triggerViolation(type) {
+    if (isFinishingExam) return;
     violationCount++;
     logViolationToAPI(type);
     if (violationCount >= MAX_VIOLATIONS) {
@@ -69,8 +73,8 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         if (data.status === "success") {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
-            // Simpan nama asli siswa yang ditarik dari DB Apps Script ke LocalStorage
-            localStorage.setItem('namaSiswa', data.nama || "Peserta Ujian");
+            // Menyimpan nama asli dari database, jika kosong fallback menggunakan ID login/NISN
+            localStorage.setItem('namaSiswa', data.nama || nisn);
             switchPage('instruction');
         } else {
             alert(data.message || "Kredensial Anda salah!");
@@ -83,7 +87,7 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
-        startTimer(60 * 90);
+        startTimer(60 * 90); // Alokasi waktu default (90 Menit)
         fetchExamPackage();
     }).catch(() => alert("Gagal mengaktifkan modul fullscreen."));
 });
@@ -110,8 +114,7 @@ function renderCbtDashboard() {
     const currentQuestion = examQuestions[activeIndex];
     
     document.getElementById('current-question-num').innerText = activeIndex + 1;
-    // Poin 1 Perbaikan: Mengambil nilai bobot real secara dinamis dari API paket soal
-    document.getElementById('question-weight').innerText = currentQuestion.bobot || 0;
+    // Rendering pengisian teks bobot soal telah dihapus sepenuhnya
     document.getElementById('question-text').innerText = currentQuestion.pertanyaan;
 
     const optContainer = document.getElementById('options-container');
@@ -135,7 +138,6 @@ function renderCbtDashboard() {
         }
     });
 
-    document.getElementById('btn-finish-trigger').classList.toggle('hidden', activeIndex !== examQuestions.length - 1);
     renderGridIndicators();
 }
 
@@ -148,7 +150,6 @@ function renderGridIndicators() {
     const grid = document.getElementById('question-grid'); grid.innerHTML = '';
     examQuestions.forEach((q, idx) => {
         const box = document.createElement('button');
-        // Poin 3 Perbaikan: Ukuran fleksibel aspect-square, aman di HP, tablet, dan PC
         box.className = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
         box.innerText = idx + 1;
 
@@ -171,7 +172,8 @@ function saveAnswerToCloud(idSoal, jawaban) {
 }
 
 document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
-    if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas?")) {
+    if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
+        isFinishingExam = true; // Konstatus aman: Siswa keluar fullscreen secara resmi tanpa kena penalti
         const nisn = localStorage.getItem('nisn');
         try {
             await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
@@ -182,24 +184,59 @@ document.getElementById('btn-finish-trigger').addEventListener('click', async ()
 
 // --- CORE UTILS ---
 function switchPage(pageName) { Object.values(pages).forEach(p => p.classList.add('hidden')); pages[pageName].classList.remove('hidden'); }
+
 function startTimer(durationSeconds) {
     let timeLeft = durationSeconds;
+    const btnFinish = document.getElementById('btn-finish-trigger');
+    
     timerInterval = setInterval(() => {
-        let hrs = Math.floor(timeLeft / 3600); let mins = Math.floor((timeLeft % 3600) / 60); let secs = timeLeft % 60;
+        let hrs = Math.floor(timeLeft / 3600); 
+        let mins = Math.floor((timeLeft % 3600) / 60); 
+        let secs = timeLeft % 60;
+        
         document.getElementById('timer-countdown').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-        if (--timeLeft < 0) { clearInterval(timerInterval); autoSubmitExam("Waktu Sesi Habis"); }
+        
+        // Aturan: Tombol selesai baru akan muncul jika sisa waktu <= 20 menit (1200 detik)
+        if (timeLeft <= 1200) {
+            btnFinish.classList.remove('hidden');
+        } else {
+            btnFinish.classList.add('hidden');
+        }
+        
+        if (--timeLeft < 0) { 
+            clearInterval(timerInterval); 
+            isFinishingExam = true;
+            autoSubmitExam("Waktu Sesi Habis"); 
+        }
     }, 1000);
 }
-async function logViolationToAPI(type) { const nisn = localStorage.getItem('nisn'); navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type })); }
-function autoSubmitExam(reason) { clearInterval(timerInterval); if (document.fullscreenElement) document.exitFullscreen(); alert(`Ujian selesai: ${reason}`); finishExam(); }
+
+async function logViolationToAPI(type) { 
+    if (isFinishingExam) return;
+    const nisn = localStorage.getItem('nisn'); 
+    navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type })); 
+}
+
+function autoSubmitExam(reason) { 
+    clearInterval(timerInterval); 
+    isFinishingExam = true;
+    if (document.fullscreenElement) document.exitFullscreen(); 
+    alert(`Ujian selesai: ${reason}`); 
+    finishExam(); 
+}
 
 function finishExam() { 
     clearInterval(timerInterval); 
-    if (document.fullscreenElement) document.exitFullscreen(); 
+    isFinishingExam = true;
+    
+    if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    }
+    
     document.getElementById('exam-timer').classList.add('hidden'); 
     
-    // Poin 2 Perbaikan: Menampilkan Nama Asli Siswa dari LocalStorage di halaman sukses, bukan nomor/ID lagi
-    const namaTerdaftar = localStorage.getItem('namaSiswa') || "Peserta Ujian";
+    // Menampilkan nama lengkap yang tersimpan, bukan ID/Nomor peserta
+    const namaTerdaftar = localStorage.getItem('namaSiswa');
     document.getElementById('res-nama').innerText = namaTerdaftar; 
     
     switchPage('finish'); 
