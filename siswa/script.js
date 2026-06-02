@@ -8,7 +8,11 @@ let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
-let isFinishingExam = false; // Flag status pengaman agar pemutusan fullscreen di akhir pengerjaan tidak terdeteksi curang
+let isFinishingExam = false; // Flag pengaman agar penutupan screen tidak terbaca curang di akhir sesi
+
+// Simpan dimensi awal layar HP/PC untuk mendeteksi Split Screen secara real-time
+let initialWidth = window.innerWidth;
+let initialHeight = window.innerHeight;
 
 const pages = {
     login: document.getElementById('login-page'),
@@ -17,7 +21,7 @@ const pages = {
     finish: document.getElementById('finish-page')
 };
 
-// --- SECURITIES GUARD ENGINE ---
+// --- SECURITIES GUARD ENGINE (PROTEKSI LAPTOP & HP MULTI-LAYER) ---
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'v')) {
@@ -26,15 +30,44 @@ document.addEventListener('keydown', e => {
     }
 });
 
+// Deteksi 1: Siswa menekan tombol Home, membuka panel slide bar, atau menekan notifikasi HP
 window.addEventListener('blur', () => {
-    if (isFinishingExam) return; // Jika tombol selesai diklik, abaikan sistem deteksi pelanggaran
+    if (isFinishingExam) return;
     if (sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
-        triggerViolation("Pindah Tab / Aplikasi (Window Blur)");
+        triggerViolation("Pindah Tab Browser / Menekan Notifikasi");
     }
 });
 
+// Deteksi 2: Visibilitas halaman menghilang (Browser di-minimize / pindah aplikasi)
+document.addEventListener('visibilitychange', () => {
+    if (isFinishingExam) return;
+    if (document.visibilityState === 'hidden' && sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
+        triggerViolation("Membuka Aplikasi Lain (Halaman Tersembunyi)");
+    }
+});
+
+// Deteksi 3: Siswa mencoba membagi layar (Split Screen) atau menarik pop-up window di Android/iOS
+window.addEventListener('resize', () => {
+    if (isFinishingExam) return;
+    if (sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
+        
+        // Toleransi penyusutan dimensi layar maksimal 15% sebelum dianggap curang
+        let widthThreshold = initialWidth * 0.15;
+        let heightThreshold = initialHeight * 0.15;
+        
+        if (Math.abs(window.innerWidth - initialWidth) > widthThreshold || Math.abs(window.innerHeight - initialHeight) > heightThreshold) {
+            triggerViolation("Terdeteksi Split Screen (Layar Belah) / Pop-up Melayang");
+            
+            // Perbarui acuan ke ukuran baru agar tidak memicu loop alert terus menerus
+            initialWidth = window.innerWidth;
+            initialHeight = window.innerHeight;
+        }
+    }
+});
+
+// Deteksi 4: Siswa keluar dari mode fullscreen utama
 document.addEventListener('fullscreenchange', () => {
-    if (isFinishingExam) return; // Jika tombol selesai diklik, abaikan sistem deteksi pelanggaran
+    if (isFinishingExam) return;
     if (!document.fullscreenElement && sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
         triggerViolation("Keluar dari Mode Fullscreen");
     }
@@ -56,6 +89,9 @@ function triggerViolation(type) {
 document.getElementById('btn-resume').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         document.getElementById('blocker-overlay').classList.add('hidden');
+        // Reset patokan dimensi layar setelah kembali masuk fullscreen
+        initialWidth = window.innerWidth;
+        initialHeight = window.innerHeight;
     }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
 });
 
@@ -73,6 +109,7 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         if (data.status === "success") {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
+            // Simpan nama asli siswa hasil sinkronisasi database server
             localStorage.setItem('namaSiswa', data.nama || nisn);
             switchPage('instruction');
         } else {
@@ -86,7 +123,14 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
-        startTimer(60 * 5); // Alokasi waktu default (90 Menit)
+        
+        // --- SETTING DURASI TOTAL UJIAN (Ubah Angka Sesuai Menit) ---
+        startTimer(60 * 90); // default: 90 menit
+        
+        // Catat patokan dimensi layar resmi tepat saat lembar soal diaktifkan
+        initialWidth = window.innerWidth;
+        initialHeight = window.innerHeight;
+        
         fetchExamPackage();
     }).catch(() => alert("Gagal mengaktifkan modul fullscreen."));
 });
@@ -170,7 +214,6 @@ function saveAnswerToCloud(idSoal, jawaban) {
 }
 
 document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
-    // Tombol hanya mengeksekusi ini jika sudah tidak disabled (diaktifkan oleh timer)
     if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
         isFinishingExam = true; 
         const nisn = localStorage.getItem('nisn');
@@ -196,21 +239,17 @@ function startTimer(durationSeconds) {
         
         document.getElementById('timer-countdown').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
         
-        // Aturan Modifikasi: Tombol selesai diaktifkan penuh ketika sisa waktu <= 20 menit (1200 detik)
+        // Jika sisa waktu <= 20 menit (1200 detik), ganti status tombol jadi aktif benderang
         if (timeLeft <= 1200) {
             btnFinish.removeAttribute('disabled');
-            // Ganti style tombol jadi merah active khas ExamApp
             btnFinish.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg";
             btnFinish.innerHTML = `<i class="fa-solid fa-check-double"></i> Selesai & Kirim Ujian`;
-            
-            // Sembunyikan notifikasi instruksi karena tombol sudah terbuka
             noticeFinish.classList.add('hidden');
         } else {
-            // Tetap dikunci jika waktu masih panjang
+            // Jika belum masuk 20 menit akhir, tombol tetap dikunci mati (disabled)
             btnFinish.setAttribute('disabled', 'true');
             btnFinish.className = "w-full bg-slate-300 text-slate-500 font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-not-allowed select-none";
             btnFinish.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Selesai & Kirim Ujian`;
-            
             noticeFinish.classList.remove('hidden');
         }
         
