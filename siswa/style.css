@@ -1,5 +1,4 @@
 /* Menggunakan Tailwind CSS CDN Engine via Utility Classes di HTML */
-/* Di bawah ini adalah kustomisasi CSS murni tambahan untuk proteksi ketat */
 @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap');
 
@@ -33,4 +32,23 @@ section {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mencegah Bug Zoom Otomatis pada Input Text di browser iPhone/Safari iOS */
+@media screen and (max-width: 768px) {
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Kustomisasi scrollbar internal box nomor agar tipis dan rapi */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 99px;
 }
