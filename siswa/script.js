@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwObAnbk6qCItzbGWbQSoNxHnlH1KopMF1OXWa68siFWwaOCb4S6Yo-Yr5V5PmmA3dGHg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxbplQ7qpH65vQVUE2HQeednqMwrzCBjRe7fCQaq8gL2k42dCUwrVvkDde-dTD68TQJ/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -8,9 +8,9 @@ let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
-let isFinishingExam = false; // Flag pengaman agar penutupan screen tidak terbaca curang di akhir sesi
+let isFinishingExam = false; 
 
-// Simpan dimensi awal layar HP/PC untuk mendeteksi Split Screen secara real-time
+// Menyimpan ukuran layar awal untuk deteksi manipulasi Split Screen (Layar Belah HP)
 let initialWidth = window.innerWidth;
 let initialHeight = window.innerHeight;
 
@@ -21,7 +21,7 @@ const pages = {
     finish: document.getElementById('finish-page')
 };
 
-// --- SECURITIES GUARD ENGINE (PROTEKSI LAPTOP & HP MULTI-LAYER) ---
+// --- SECURITIES GUARD ENGINE (ANTI-NYONTEK HP & PC BERLAPIS) ---
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'v')) {
@@ -30,15 +30,13 @@ document.addEventListener('keydown', e => {
     }
 });
 
-// Deteksi 1: Siswa menekan tombol Home, membuka panel slide bar, atau menekan notifikasi HP
 window.addEventListener('blur', () => {
     if (isFinishingExam) return;
     if (sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
-        triggerViolation("Pindah Tab Browser / Menekan Notifikasi");
+        triggerViolation("Pindah Tab Browser / Keluar Aplikasi");
     }
 });
 
-// Deteksi 2: Visibilitas halaman menghilang (Browser di-minimize / pindah aplikasi)
 document.addEventListener('visibilitychange', () => {
     if (isFinishingExam) return;
     if (document.visibilityState === 'hidden' && sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
@@ -46,26 +44,22 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// Deteksi 3: Siswa mencoba membagi layar (Split Screen) atau menarik pop-up window di Android/iOS
 window.addEventListener('resize', () => {
     if (isFinishingExam) return;
     if (sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
         
-        // Toleransi penyusutan dimensi layar maksimal 15% sebelum dianggap curang
         let widthThreshold = initialWidth * 0.15;
         let heightThreshold = initialHeight * 0.15;
         
         if (Math.abs(window.innerWidth - initialWidth) > widthThreshold || Math.abs(window.innerHeight - initialHeight) > heightThreshold) {
             triggerViolation("Terdeteksi Split Screen (Layar Belah) / Pop-up Melayang");
             
-            // Perbarui acuan ke ukuran baru agar tidak memicu loop alert terus menerus
             initialWidth = window.innerWidth;
             initialHeight = window.innerHeight;
         }
     }
 });
 
-// Deteksi 4: Siswa keluar dari mode fullscreen utama
 document.addEventListener('fullscreenchange', () => {
     if (isFinishingExam) return;
     if (!document.fullscreenElement && sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
@@ -89,7 +83,6 @@ function triggerViolation(type) {
 document.getElementById('btn-resume').addEventListener('click', () => {
     document.documentElement.requestFullscreen().then(() => {
         document.getElementById('blocker-overlay').classList.add('hidden');
-        // Reset patokan dimensi layar setelah kembali masuk fullscreen
         initialWidth = window.innerWidth;
         initialHeight = window.innerHeight;
     }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
@@ -109,7 +102,6 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         if (data.status === "success") {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
-            // Simpan nama asli siswa hasil sinkronisasi database server
             localStorage.setItem('namaSiswa', data.nama || nisn);
             switchPage('instruction');
         } else {
@@ -124,10 +116,9 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
         
-        // --- SETTING DURASI TOTAL UJIAN (Ubah Angka Sesuai Menit) ---
-        startTimer(60 * 90); // default: 90 menit
+        // --- TEMPAT MERUBAH DURASI UJIAN (Dalam Satuan Detik) ---
+        startTimer(60 * 90); // Default: 90 Menit. Untuk 5 menit ubah jadi: (60 * 5)
         
-        // Catat patokan dimensi layar resmi tepat saat lembar soal diaktifkan
         initialWidth = window.innerWidth;
         initialHeight = window.innerHeight;
         
@@ -162,6 +153,7 @@ function renderCbtDashboard() {
     const optContainer = document.getElementById('options-container');
     optContainer.innerHTML = '';
 
+    // Loop pembuatan opsi pilihan jawaban yang adaptif terhadap arsitektur acakan Apps Script
     ['a', 'b', 'c', 'd', 'e'].forEach(key => {
         if (currentQuestion[`opsi_${key}`]) {
             const btn = document.createElement('button');
@@ -172,7 +164,10 @@ function renderCbtDashboard() {
                 document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
                 btn.classList.add('selected');
                 studentAnswers[currentQuestion.id_soal] = key;
-                saveAnswerToCloud(currentQuestion.id_soal, key);
+                
+                // Konversi kunci dinamis kembali ke index aslinya agar kalkulasi nilai di spreadsheet tetap akurat
+                let properKey = currentQuestion[`map${key.toUpperCase()}`] || key;
+                saveAnswerToCloud(currentQuestion.id_soal, properKey);
                 renderGridIndicators();
             };
             btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>`;
@@ -214,14 +209,14 @@ function saveAnswerToCloud(idSoal, jawaban) {
 }
 
 document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
-    if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
-        isFinishingExam = true; 
-        const nisn = localStorage.getItem('nisn');
-        try {
-            await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
-            finishExam();
-        } catch(e) { finishExam(); }
-    }
+  if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
+      isFinishingExam = true; 
+      const nisn = localStorage.getItem('nisn');
+      try {
+          await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
+          finishExam();
+      } catch(e) { finishExam(); }
+  }
 });
 
 // --- CORE UTILS ---
@@ -239,14 +234,13 @@ function startTimer(durationSeconds) {
         
         document.getElementById('timer-countdown').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
         
-        // Jika sisa waktu <= 20 menit (1200 detik), ganti status tombol jadi aktif benderang
+        // Aturan Kunci Sesi: Tombol diaktifkan penuh ketika sisa waktu <= 20 menit (1200 detik)
         if (timeLeft <= 1200) {
             btnFinish.removeAttribute('disabled');
             btnFinish.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg";
             btnFinish.innerHTML = `<i class="fa-solid fa-check-double"></i> Selesai & Kirim Ujian`;
             noticeFinish.classList.add('hidden');
         } else {
-            // Jika belum masuk 20 menit akhir, tombol tetap dikunci mati (disabled)
             btnFinish.setAttribute('disabled', 'true');
             btnFinish.className = "w-full bg-slate-300 text-slate-500 font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-not-allowed select-none";
             btnFinish.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Selesai & Kirim Ujian`;
