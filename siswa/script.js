@@ -69,6 +69,12 @@ document.addEventListener('fullscreenchange', () => {
 
 function triggerViolation(type) {
     if (isFinishingExam) return;
+    
+    // FIX KHUSUS IPHONE: Jika tipe pelanggaran adalah fullscreen tetapi device tidak mendukung API Fullscreen, abaikan.
+    if (type === "Keluar dari Mode Fullscreen" && !document.documentElement.requestFullscreen) {
+        return; 
+    }
+
     violationCount++;
     logViolationToAPI(type);
     if (violationCount >= MAX_VIOLATIONS) {
@@ -81,11 +87,17 @@ function triggerViolation(type) {
 }
 
 document.getElementById('btn-resume').addEventListener('click', () => {
-    document.documentElement.requestFullscreen().then(() => {
+    // Validasi pengecekan dukungan fullscreen saat tombol resume ditekan
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().then(() => {
+            document.getElementById('blocker-overlay').classList.add('hidden');
+            initialWidth = window.innerWidth;
+            initialHeight = window.innerHeight;
+        }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
+    } else {
+        // Jika di iPhone, langsung tutup blocker overlay karena tidak mendukung fullscreen
         document.getElementById('blocker-overlay').classList.add('hidden');
-        initialWidth = window.innerWidth;
-        initialHeight = window.innerHeight;
-    }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
+    }
 });
 
 // --- AUTH ENGINE ---
@@ -112,18 +124,33 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('btn-start-exam').addEventListener('click', () => {
-    document.documentElement.requestFullscreen().then(() => {
+    // Alur penyiapan dashboard dan fetch soal dimasukkan ke dalam fungsi terisolasi
+    const startExamWorkflow = () => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
         
         // --- TEMPAT MERUBAH DURASI UJIAN (Dalam Satuan Detik) ---
-        startTimer(60 * 60); // Default: 90 Menit. Untuk 5 menit ubah jadi: (60 * 5)
+        startTimer(60 * 60); // Default: 60 Menit.
         
         initialWidth = window.innerWidth;
         initialHeight = window.innerHeight;
         
         fetchExamPackage();
-    }).catch(() => alert("Gagal mengaktifkan modul fullscreen."));
+    };
+
+    // FIX KHUSUS IPHONE: Cek ketersediaan API requestFullscreen sebelum dieksekusi
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen()
+            .then(startExamWorkflow)
+            .catch(() => {
+                // Jika request fullscreen gagal/ditolak oleh user di Android/PC, sistem tetap mengizinkan ujian
+                startExamWorkflow();
+            });
+    } else {
+        // Eksekusi langsung jika diakses dari iOS / Safari Mobile
+        alert("Sistem mendeteksi perangkat iOS. Mode Fullscreen otomatis dilewati. Mohon jangan keluar dari aplikasi selama ujian berlangsung!");
+        startExamWorkflow();
+    }
 });
 
 // --- CBT CORE SYSTEM ---
@@ -264,7 +291,7 @@ async function logViolationToAPI(type) {
 function autoSubmitExam(reason) { 
     clearInterval(timerInterval); 
     isFinishingExam = true;
-    if (document.fullscreenElement) document.exitFullscreen(); 
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); 
     alert(`Ujian selesai: ${reason}`); 
     finishExam(); 
 }
@@ -273,7 +300,7 @@ function finishExam() {
     clearInterval(timerInterval); 
     isFinishingExam = true;
     
-    if (document.fullscreenElement) {
+    if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
     }
     
