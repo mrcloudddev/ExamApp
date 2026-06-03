@@ -117,7 +117,7 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
         
         // --- TEMPAT MERUBAH DURASI UJIAN (Dalam Satuan Detik) ---
-        startTimer(60 * 90); // Default: 90 Menit. Untuk 5 menit ubah jadi: (60 * 5)
+        startTimer(60 * 60); // Default: 90 Menit. Untuk 5 menit ubah jadi: (60 * 5)
         
         initialWidth = window.innerWidth;
         initialHeight = window.innerHeight;
