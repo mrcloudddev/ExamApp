@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxbplQ7qpH65vQVUE2HQeednqMwrzCBjRe7fCQaq8gL2k42dCUwrVvkDde-dTD68TQJ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbza70DdM7lJuR4YTDimoiNmsB_rP4g1q6aSeIsJ6TbhEjOJ08jBfl1YMnQjzqsy7B7VZg/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -24,6 +24,7 @@ async function refreshData() {
             if(document.getElementById('stat-pelanggaran')) document.getElementById('stat-pelanggaran').innerText = data.stats.totalPelanggaran || 0;
             renderLiveTable(data.siswaList);
             renderSiswaTable(data.siswaList);
+            renderAksesTable(data.siswaList);
             renderSoalTable(data.soalList);
             renderJadwalTable(data.jadwalList);
         }
@@ -95,6 +96,141 @@ document.getElementById('form-kontrol-jadwal').addEventListener('submit', async 
         alert("Jadwal kelas berhasil diubah!"); refreshData();
     } catch(err) { alert("Gagal ubah jadwal."); } finally { btn.disabled = false; btn.innerHTML = 'Terapkan Perubahan'; }
 });
+
+// ============================================================
+// AKSES UJIAN PER SISWA
+// ============================================================
+
+// Cache data siswa untuk fitur akses (diisi ulang setiap refreshData)
+let allSiswaForAkses = [];
+
+function renderAksesTable(list) {
+    allSiswaForAkses = list.map(s => ({
+        nisn: s.nisn,
+        nama: s.nama,
+        kelas: s.kelas,
+        // Default: akses BUKA kecuali field aksesUjian di data = "TUTUP"
+        akses: (s.aksesUjian === 'TUTUP') ? 'tutup' : 'buka'
+    }));
+
+    // Isi dropdown filter kelas
+    const kelasSet = [...new Set(allSiswaForAkses.map(s => s.kelas).filter(Boolean))].sort();
+    const filterKelas = document.getElementById('filter-akses-kelas');
+    if (filterKelas) {
+        const currentVal = filterKelas.value;
+        filterKelas.innerHTML = '<option value="">Semua Kelas</option>';
+        kelasSet.forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k; opt.textContent = k;
+            if (k === currentVal) opt.selected = true;
+            filterKelas.appendChild(opt);
+        });
+    }
+
+    filterAksesTable();
+}
+
+function filterAksesTable() {
+    const q = (document.getElementById('filter-akses-nama')?.value || '').toLowerCase();
+    const kelasFilter = document.getElementById('filter-akses-kelas')?.value || '';
+    const statusFilter = document.getElementById('filter-akses-status')?.value || '';
+
+    const filtered = allSiswaForAkses.filter(s => {
+        const matchQ = !q || s.nama.toLowerCase().includes(q) || s.nisn.toLowerCase().includes(q);
+        const matchKelas = !kelasFilter || s.kelas === kelasFilter;
+        const matchStatus = !statusFilter || s.akses === statusFilter;
+        return matchQ && matchKelas && matchStatus;
+    });
+
+    const tbody = document.getElementById('akses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Tidak ada siswa yang cocok.</td></tr>`;
+    } else {
+        filtered.forEach(s => {
+            const isBuka = s.akses === 'buka';
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-900/40 border-b border-slate-800/40 transition-colors ' + (isBuka ? '' : 'opacity-60');
+            tr.id = `akses-row-${s.nisn}`;
+            tr.innerHTML = `
+                <td class="p-4 font-mono text-indigo-400 font-bold">${s.nisn}</td>
+                <td class="p-4 font-bold text-white">${s.nama}</td>
+                <td class="p-4 text-slate-400">${s.kelas}</td>
+                <td class="p-4 text-center">
+                    ${isBuka
+                        ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider"><i class="fa-solid fa-lock-open mr-1 text-[9px]"></i>Terbuka</span>`
+                        : `<span class="bg-rose-500/10 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider"><i class="fa-solid fa-lock mr-1 text-[9px]"></i>Ditutup</span>`
+                    }
+                </td>
+                <td class="p-4 text-center">
+                    <button onclick="toggleAksesSiswa('${s.nisn}', '${isBuka ? 'tutup' : 'buka'}')"
+                        class="font-bold px-4 py-1.5 rounded-xl text-[10px] transition-all ${isBuka
+                            ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'}">
+                        ${isBuka ? '<i class="fa-solid fa-lock mr-1"></i>Tutup Akses' : '<i class="fa-solid fa-lock-open mr-1"></i>Buka Akses'}
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Update stats
+    const total = allSiswaForAkses.length;
+    const buka = allSiswaForAkses.filter(s => s.akses === 'buka').length;
+    const tutup = total - buka;
+    if (document.getElementById('akses-stat-total')) document.getElementById('akses-stat-total').innerText = total;
+    if (document.getElementById('akses-stat-buka')) document.getElementById('akses-stat-buka').innerText = buka;
+    if (document.getElementById('akses-stat-tutup')) document.getElementById('akses-stat-tutup').innerText = tutup;
+}
+
+async function toggleAksesSiswa(nisn, newAkses) {
+    // Optimistic UI: update lokal dulu
+    const siswa = allSiswaForAkses.find(s => s.nisn === nisn);
+    if (!siswa) return;
+    siswa.akses = newAkses;
+    filterAksesTable();
+
+    // Kirim ke server
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'setAksesUjian', nisn: nisn, akses: newAkses.toUpperCase() })
+        });
+    } catch (err) {
+        console.error('Gagal mengubah akses:', err);
+        // Rollback jika gagal
+        siswa.akses = newAkses === 'buka' ? 'tutup' : 'buka';
+        filterAksesTable();
+        alert('Gagal mengubah akses. Periksa koneksi.');
+    }
+}
+
+async function aksesAction(type) {
+    const label = type === 'bukaAll' ? 'membuka akses semua siswa' : 'menutup akses semua siswa';
+    if (!confirm(`Apakah Anda yakin ingin ${label}?`)) return;
+
+    const newAkses = type === 'bukaAll' ? 'buka' : 'tutup';
+    allSiswaForAkses.forEach(s => s.akses = newAkses);
+    filterAksesTable();
+
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'setAksesUjianAll', akses: newAkses.toUpperCase() })
+        });
+    } catch (err) {
+        console.error('Gagal:', err);
+        alert('Gagal mengubah akses semua siswa. Periksa koneksi.');
+        refreshData();
+    }
+}
 
 function exportNilai() { window.open(`${API_URL}?action=exportExcel`, '_blank'); }
 window.onload = windowLoadHandler;
