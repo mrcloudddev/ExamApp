@@ -190,7 +190,23 @@ function renderCbtDashboard() {
     const imgWrap = document.getElementById('question-image-wrap');
     const imgEl = document.getElementById('question-image');
     if (currentQuestion.gambar_url && currentQuestion.gambar_url.trim() !== '') {
-        imgEl.src = currentQuestion.gambar_url.trim();
+        let imgUrl = currentQuestion.gambar_url.trim();
+
+        // Konversi berbagai format Google Drive ke format thumbnail yang bisa di-embed
+        // Format 1: https://drive.google.com/file/d/FILE_ID/view
+        // Format 2: https://drive.google.com/open?id=FILE_ID
+        // Format 3: https://drive.google.com/uc?id=FILE_ID  (sudah benar, tapi sering diblokir)
+        const driveMatch = imgUrl.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]{25,})/);
+        if (driveMatch) {
+            // Gunakan thumbnail API Drive yang tidak butuh auth
+            imgUrl = `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w800`;
+        }
+
+        imgEl.src = imgUrl;
+        imgEl.onerror = function() {
+            // Jika gambar gagal load, sembunyikan dan tampilkan pesan
+            imgWrap.innerHTML = '<p class="text-xs text-rose-400 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Gambar tidak dapat dimuat. Pastikan link gambar dapat diakses publik.</p>';
+        };
         imgWrap.classList.remove('hidden');
     } else {
         imgWrap.classList.add('hidden');
