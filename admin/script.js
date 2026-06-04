@@ -43,14 +43,116 @@ function renderLiveTable(list) {
     });
 }
 
+// Cache siswa untuk filter
+let siswaCache = [];
+
 function renderSiswaTable(list) {
-    const tbody = document.getElementById('siswa-table-body'); if (!tbody) return; tbody.innerHTML = '';
-    list.forEach(item => {
+    siswaCache = list;
+
+    // Isi dropdown kelas
+    const kelasSet = [...new Set(list.map(s => s.kelas).filter(Boolean))].sort();
+    const kelasSelect = document.getElementById('siswa-filter-kelas');
+    if (kelasSelect) {
+        const prev = kelasSelect.value;
+        kelasSelect.innerHTML = '<option value="">Semua Kelas</option>';
+        kelasSet.forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; kelasSelect.appendChild(o); });
+        kelasSelect.value = prev;
+    }
+
+    applyFilterSiswa();
+}
+
+function applyFilterSiswa() {
+    const text = (document.getElementById('siswa-filter-text')?.value || '').toLowerCase().trim();
+    const kelas = document.getElementById('siswa-filter-kelas')?.value || '';
+
+    const filtered = siswaCache.filter(item => {
+        const matchText = !text ||
+            String(item.nisn).toLowerCase().includes(text) ||
+            String(item.nama).toLowerCase().includes(text);
+        const matchKelas = !kelas || item.kelas === kelas;
+        return matchText && matchKelas;
+    });
+
+    const badge = document.getElementById('siswa-count-badge');
+    if (badge) badge.textContent = `${filtered.length} / ${siswaCache.length} siswa`;
+
+    const tbody = document.getElementById('siswa-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Tidak ada siswa yang cocok dengan filter.</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(item => {
         let tr = document.createElement('tr'); tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 text-slate-300";
         tr.innerHTML = `<td class="p-4 font-mono text-indigo-400 font-bold">${item.nisn}</td><td class="p-4 font-bold text-white">${item.nama}</td><td class="p-4">${item.kelas}</td><td class="p-4 font-mono">${item.pin}</td><td class="p-4 font-mono text-[10px] text-slate-500 truncate max-w-[120px]">${item.token || '-'}</td>`;
         tbody.appendChild(tr);
     });
 }
+
+function resetFilterSiswa() {
+    const txt = document.getElementById('siswa-filter-text'); if (txt) txt.value = '';
+    const kl = document.getElementById('siswa-filter-kelas'); if (kl) kl.value = '';
+    applyFilterSiswa();
+}
+
+function toggleFormSiswa() {
+    const wrapper = document.getElementById('form-siswa-wrapper');
+    const icon = document.getElementById('icon-toggle-form');
+    const btn = document.getElementById('btn-toggle-form-siswa');
+    const isHidden = wrapper.classList.contains('hidden');
+    wrapper.classList.toggle('hidden');
+    icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
+    btn.querySelector('span') && (btn.lastChild.textContent = isHidden ? ' Sembunyikan Form' : ' Tampilkan Form');
+    // Update button text
+    const texts = btn.childNodes;
+    texts.forEach(n => { if (n.nodeType === 3) n.textContent = isHidden ? ' Sembunyikan Form' : ' Tampilkan Form'; });
+}
+
+function generatePin() {
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const el = document.getElementById('add-pin');
+    if (el) { el.value = pin; el.classList.add('text-indigo-400'); setTimeout(() => el.classList.remove('text-indigo-400'), 1000); }
+}
+
+function resetFormSiswa() {
+    document.getElementById('form-input-siswa').reset();
+}
+
+document.getElementById('form-input-siswa').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit-siswa');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+
+    const paramData = {
+        action: 'addNewSiswa',
+        nisn: document.getElementById('add-nisn').value.trim(),
+        nama: document.getElementById('add-nama').value.trim(),
+        kelas: document.getElementById('add-kelas-siswa').value.trim(),
+        pin: document.getElementById('add-pin').value.trim(),
+    };
+
+    try {
+        await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(paramData) });
+        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Tersimpan!';
+        btn.className = 'bg-emerald-600 text-white font-bold px-6 py-2 rounded-xl text-xs shadow-lg';
+        resetFormSiswa();
+        await refreshData();
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1"></i> Simpan ke Server';
+            btn.className = 'bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-xl text-xs transition-all shadow-lg';
+        }, 2000);
+    } catch (err) {
+        alert('Gagal menyimpan data siswa. Periksa koneksi.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1"></i> Simpan ke Server';
+    }
+});
 
 // Cache soal untuk modal edit
 let soalCache = [];
