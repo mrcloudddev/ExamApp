@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbza70DdM7lJuR4YTDimoiNmsB_rP4g1q6aSeIsJ6TbhEjOJ08jBfl1YMnQjzqsy7B7VZg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwYj61nLB8VcuEiMO_hQl-TgK_QFB7QcSoZasealIYzXnzucwAHTW24Pbd52VAfJ1o_PA/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -165,8 +165,10 @@ function filterAksesTable() {
                     }
                 </td>
                 <td class="p-4 text-center">
-                    <button onclick="toggleAksesSiswa('${s.nisn}', '${isBuka ? 'tutup' : 'buka'}')"
-                        class="font-bold px-4 py-1.5 rounded-xl text-[10px] transition-all ${isBuka
+                    <button 
+                        data-nisn="${s.nisn}"
+                        data-target="${isBuka ? 'tutup' : 'buka'}"
+                        class="btn-toggle-akses font-bold px-4 py-1.5 rounded-xl text-[10px] transition-all ${isBuka
                             ? 'bg-rose-600 hover:bg-rose-700 text-white'
                             : 'bg-emerald-600 hover:bg-emerald-700 text-white'}">
                         ${isBuka ? '<i class="fa-solid fa-lock mr-1"></i>Tutup Akses' : '<i class="fa-solid fa-lock-open mr-1"></i>Buka Akses'}
@@ -187,28 +189,42 @@ function filterAksesTable() {
 }
 
 async function toggleAksesSiswa(nisn, newAkses) {
-    // Optimistic UI: update lokal dulu
-    const siswa = allSiswaForAkses.find(s => s.nisn === nisn);
-    if (!siswa) return;
+    const siswa = allSiswaForAkses.find(s => String(s.nisn) === String(nisn));
+    if (!siswa) { console.error('NISN tidak ditemukan di cache:', nisn); return; }
+
+    const oldAkses = siswa.akses;
     siswa.akses = newAkses;
     filterAksesTable();
 
-    // Kirim ke server
     try {
+        const body = new URLSearchParams();
+        body.append('action', 'setAksesUjian');
+        body.append('nisn', String(nisn));
+        body.append('akses', newAkses.toUpperCase());
+
         await fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ action: 'setAksesUjian', nisn: nisn, akses: newAkses.toUpperCase() })
+            body: body.toString()
         });
+        // no-cors tidak bisa baca response — anggap sukses jika tidak throw
     } catch (err) {
         console.error('Gagal mengubah akses:', err);
-        // Rollback jika gagal
-        siswa.akses = newAkses === 'buka' ? 'tutup' : 'buka';
+        siswa.akses = oldAkses;
         filterAksesTable();
         alert('Gagal mengubah akses. Periksa koneksi.');
     }
 }
+
+// Event delegation — satu listener untuk semua tombol toggle di tabel
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-toggle-akses');
+    if (!btn) return;
+    const nisn = btn.getAttribute('data-nisn');
+    const target = btn.getAttribute('data-target');
+    if (nisn && target) toggleAksesSiswa(nisn, target);
+});
 
 async function aksesAction(type) {
     const label = type === 'bukaAll' ? 'membuka akses semua siswa' : 'menutup akses semua siswa';
