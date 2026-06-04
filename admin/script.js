@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbznXoVnlNGDKnrcgUr5VhVsjSOaMTUhUFCxu4tnGD4vTBbkr01ACHS0xad1VsAAV6wKzQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxRRbJTnNlGX9aJJVJFwoxsOKoHa9GVQ7CUJb4Jk_YsXeanI1P08bZ0eelbYjjxoJ22XA/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -52,13 +52,77 @@ function renderSiswaTable(list) {
     });
 }
 
+// Cache soal untuk modal edit
+let soalCache = [];
+
 function renderSoalTable(list) {
+    soalCache = list;
     const tbody = document.getElementById('soal-table-body'); if (!tbody) return; tbody.innerHTML = '';
     list.forEach(item => {
         let tr = document.createElement('tr'); tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 text-slate-300";
-        tr.innerHTML = `<td class="p-4 font-mono text-emerald-400 font-bold">${item.id_soal}</td><td class="p-4 font-semibold text-slate-400">${item.mapel}</td><td class="p-4 text-white truncate max-w-xs">${item.pertanyaan}</td><td class="p-4 text-center"><span class="bg-indigo-500/20 text-indigo-400 font-bold px-2 py-0.5 rounded uppercase">${item.kunci}</span></td><td class="p-4 text-right font-mono">${item.bobot}</td>`;
+        tr.innerHTML = `<td class="p-4 font-mono text-emerald-400 font-bold">${item.id_soal}</td><td class="p-4 font-semibold text-slate-400">${item.mapel}</td><td class="p-4 text-white truncate max-w-xs">${item.pertanyaan}</td><td class="p-4 text-center"><span class="bg-indigo-500/20 text-indigo-400 font-bold px-2 py-0.5 rounded uppercase">${item.kunci}</span></td><td class="p-4 text-right font-mono">${item.bobot}</td><td class="p-4 text-center"><button onclick="openEditModal('${item.id_soal}')" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-pen-to-square mr-1"></i>Edit</button></td>`;
         tbody.appendChild(tr);
     });
+}
+
+function openEditModal(idSoal) {
+    const soal = soalCache.find(s => String(s.id_soal) === String(idSoal));
+    if (!soal) return;
+    document.getElementById('edit-soal-id-label').innerText = `— ${idSoal}`;
+    document.getElementById('edit-id-soal-original').value = soal.id_soal;
+    document.getElementById('edit-id-soal').value = soal.id_soal;
+    document.getElementById('edit-mapel').value = soal.mapel || '';
+    document.getElementById('edit-pertanyaan').value = soal.pertanyaan || '';
+    document.getElementById('edit-gambar-url').value = soal.gambar_url || '';
+    document.getElementById('edit-opsi-a').value = soal.opsi_a || '';
+    document.getElementById('edit-opsi-b').value = soal.opsi_b || '';
+    document.getElementById('edit-opsi-c').value = soal.opsi_c || '';
+    document.getElementById('edit-opsi-d').value = soal.opsi_d || '';
+    document.getElementById('edit-opsi-e').value = soal.opsi_e || '';
+    document.getElementById('edit-kunci').value = soal.kunci || 'a';
+    document.getElementById('edit-bobot').value = soal.bobot || '';
+    document.getElementById('edit-soal-notice').classList.add('hidden');
+    document.getElementById('modal-edit-soal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('modal-edit-soal').classList.add('hidden');
+}
+
+async function submitEditSoal() {
+    const btn = document.getElementById('btn-submit-edit-soal');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Menyimpan...';
+    const paramData = {
+        action: 'editQuestion',
+        id_soal_original: document.getElementById('edit-id-soal-original').value,
+        id_soal: document.getElementById('edit-id-soal').value,
+        mapel: document.getElementById('edit-mapel').value,
+        pertanyaan: document.getElementById('edit-pertanyaan').value,
+        opsi_a: document.getElementById('edit-opsi-a').value,
+        opsi_b: document.getElementById('edit-opsi-b').value,
+        opsi_c: document.getElementById('edit-opsi-c').value,
+        opsi_d: document.getElementById('edit-opsi-d').value,
+        opsi_e: document.getElementById('edit-opsi-e').value,
+        kunci: document.getElementById('edit-kunci').value,
+        bobot: document.getElementById('edit-bobot').value,
+        gambar_url: document.getElementById('edit-gambar-url').value || ''
+    };
+    try {
+        await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(paramData) });
+        document.getElementById('edit-soal-notice').classList.remove('hidden');
+        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Tersimpan!';
+        btn.className = 'bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs';
+        refreshData();
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Perubahan';
+            btn.className = 'bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-all';
+        }, 2000);
+    } catch(err) {
+        alert('Gagal menyimpan perubahan. Periksa koneksi.');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Perubahan';
+    }
 }
 
 function renderJadwalTable(list) {
