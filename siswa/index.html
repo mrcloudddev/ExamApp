@@ -10,6 +10,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- MathJax untuk soal matematika -->
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            options: { skipHtmlTags: ['script','noscript','style','textarea'] }
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js" crossorigin="anonymous"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased select-none">
 
@@ -91,6 +99,9 @@
                         
                         <div id="question-container" class="space-y-4 mb-6">
                             <p id="question-text" class="text-sm md:text-base font-medium text-slate-800 leading-relaxed break-words">Memuat pertanyaan...</p>
+                            <div id="question-image-wrap" class="hidden mt-3">
+                                <img id="question-image" src="" alt="Gambar soal" class="max-w-full rounded-xl border border-slate-200 shadow-sm mx-auto block" style="max-height:320px;object-fit:contain;">
+                            </div>
                         </div>
 
                         <div id="options-container" class="space-y-3"></div>
