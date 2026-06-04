@@ -101,7 +101,15 @@
                 </section>
 
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800"><h3 class="font-bold text-sm text-white"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Repositori Bank Soal</h3></div>
+                    <div class="p-5 border-b border-slate-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <h3 class="font-bold text-sm text-white shrink-0"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Repositori Bank Soal <span id="soal-count-badge" class="ml-2 bg-slate-700 text-slate-400 text-[10px] font-mono px-2 py-0.5 rounded-full"></span></h3>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px]"></i><input id="soal-filter-text" type="text" placeholder="Cari ID, mapel, pertanyaan..." oninput="applyFilterSoal()" class="bg-slate-800 border border-slate-700 rounded-xl pl-7 pr-3 py-1.5 text-white text-xs outline-none focus:border-emerald-500 w-52"></div>
+                            <select id="soal-filter-mapel" onchange="applyFilterSoal()" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-emerald-500"><option value="">Semua Mapel</option></select>
+                            <select id="soal-filter-kunci" onchange="applyFilterSoal()" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-emerald-500"><option value="">Semua Kunci</option><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option><option value="e">E</option></select>
+                            <button onclick="resetFilterSoal()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold px-3 py-1.5 rounded-xl transition-all"><i class="fa-solid fa-rotate-left mr-1"></i>Reset</button>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">ID Soal</th><th class="p-4">Mata Pelajaran</th><th class="p-4 w-1/2">Pertanyaan</th><th class="p-4 text-center">Kunci</th><th class="p-4 text-right">Bobot</th><th class="p-4 text-center">Aksi</th></tr></thead><tbody id="soal-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="6" class="p-8 text-center text-slate-500">Memuat repositori bank soal...</td></tr></tbody></table></div>
                 </section>
             </div>
