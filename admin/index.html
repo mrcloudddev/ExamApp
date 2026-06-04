@@ -64,9 +64,93 @@
             </div>
 
             <div id="page-siswa" class="admin-page space-y-6 hidden">
+
+                <!-- FORM TAMBAH SISWA -->
+                <section class="bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                    <div class="border-b border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                        <h3 class="font-bold text-sm text-indigo-400 flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Tambah Data Siswa Baru
+                        </h3>
+                        <button onclick="toggleFormSiswa()" id="btn-toggle-form-siswa" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-chevron-down" id="icon-toggle-form"></i> Tampilkan Form
+                        </button>
+                    </div>
+                    <div id="form-siswa-wrapper" class="hidden">
+                        <form id="form-input-siswa" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">NISN <span class="text-rose-400">*</span></label>
+                                    <input type="text" id="add-nisn" required placeholder="0012345678" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none focus:border-indigo-500 font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Lengkap <span class="text-rose-400">*</span></label>
+                                    <input type="text" id="add-nama" required placeholder="Budi Santoso" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kelas <span class="text-rose-400">*</span></label>
+                                    <input type="text" id="add-kelas-siswa" required placeholder="X-Informatika-1" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none focus:border-indigo-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">PIN Login <span class="text-rose-400">*</span></label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="add-pin" required placeholder="123456" maxlength="8" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none focus:border-indigo-500 font-mono">
+                                        <button type="button" onclick="generatePin()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold px-3 py-1.5 rounded-xl text-xs transition-all whitespace-nowrap"><i class="fa-solid fa-dice mr-1"></i>Generate</button>
+                                    </div>
+                                </div>
+                                <div class="flex items-end">
+                                    <p class="text-[10px] text-slate-500 leading-relaxed"><i class="fa-solid fa-circle-info text-slate-600 mr-1"></i>UUID Sesi akan dibuat otomatis oleh sistem saat siswa pertama kali login.</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3 pt-1">
+                                <button type="button" onclick="resetFormSiswa()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2 rounded-xl text-xs transition-all">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i>Reset
+                                </button>
+                                <button type="submit" id="btn-submit-siswa" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-xl text-xs transition-all shadow-lg">
+                                    <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Simpan ke Server
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- TABEL KREDENSIAL DENGAN FILTER -->
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800"><h3 class="font-bold text-sm text-white"><i class="fa-solid fa-user-group text-indigo-400 mr-1"></i>Kredensial Autentikasi Peserta</h3></div>
-                    <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">NISN</th><th class="p-4">Nama Lengkap</th><th class="p-4">Kelas</th><th class="p-4">PIN Login</th><th class="p-4">UUID Sesi</th></tr></thead><tbody id="siswa-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat basis data siswa...</td></tr></tbody></table></div>
+                    <div class="p-5 border-b border-slate-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <h3 class="font-bold text-sm text-white shrink-0">
+                            <i class="fa-solid fa-user-group text-indigo-400 mr-1"></i>Kredensial Autentikasi Peserta
+                            <span id="siswa-count-badge" class="ml-2 bg-slate-700 text-slate-400 text-[10px] font-mono px-2 py-0.5 rounded-full"></span>
+                        </h3>
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px]"></i>
+                                <input id="siswa-filter-text" type="text" placeholder="Cari nama atau NISN..." oninput="applyFilterSiswa()" class="bg-slate-800 border border-slate-700 rounded-xl pl-7 pr-3 py-1.5 text-white text-xs outline-none focus:border-indigo-500 w-52">
+                            </div>
+                            <select id="siswa-filter-kelas" onchange="applyFilterSiswa()" class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-indigo-500">
+                                <option value="">Semua Kelas</option>
+                            </select>
+                            <button onclick="resetFilterSiswa()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold px-3 py-1.5 rounded-xl transition-all">
+                                <i class="fa-solid fa-rotate-left mr-1"></i>Reset
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]">
+                                    <th class="p-4">NISN</th>
+                                    <th class="p-4">Nama Lengkap</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4">PIN Login</th>
+                                    <th class="p-4">UUID Sesi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siswa-table-body" class="divide-y divide-slate-800/50">
+                                <tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat basis data siswa...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </section>
             </div>
 
