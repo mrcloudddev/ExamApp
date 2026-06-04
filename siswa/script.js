@@ -135,13 +135,10 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
     const startExamWorkflow = () => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
-        
-        // --- TEMPAT MERUBAH DURASI UJIAN (Dalam Satuan Detik) ---
-        startTimer(60 * 60); // Default: 60 Menit.
-        
+        // Timer tidak dijalankan di sini — akan dijalankan setelah fetchExamPackage
+        // mendapatkan sisa_waktu dari server agar siswa telat mendapat waktu yang dipotong
         initialWidth = window.innerWidth;
         initialHeight = window.innerHeight;
-        
         fetchExamPackage();
     };
 
@@ -170,7 +167,21 @@ async function fetchExamPackage() {
             examQuestions = data.questions;
             activeIndex = 0;
             renderCbtDashboard();
-            // Mulai polling soal setiap 30 detik agar perubahan admin langsung terlihat
+
+            // Gunakan sisa_waktu dari server jika tersedia (dalam detik)
+            // Ini memastikan siswa telat mendapat waktu yang sudah dipotong
+            const sisaWaktu = (data.sisa_waktu && data.sisa_waktu > 0)
+                ? data.sisa_waktu
+                : 60 * 60; // fallback 60 menit jika server belum support field ini
+
+            if (data.sisa_waktu && data.sisa_waktu <= 0) {
+                // Waktu ujian sudah habis sebelum siswa sempat mulai
+                alert("Waktu ujian untuk kelas Anda telah habis. Silakan hubungi pengawas.");
+                autoSubmitExam("Waktu Ujian Telah Habis Saat Login");
+                return;
+            }
+
+            startTimer(sisaWaktu);
             startQuestionPolling();
         } else {
             alert(data.message || "Tidak ada paket ujian aktif.");
