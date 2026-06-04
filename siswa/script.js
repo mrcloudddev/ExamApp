@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbznXoVnlNGDKnrcgUr5VhVsjSOaMTUhUFCxu4tnGD4vTBbkr01ACHS0xad1VsAAV6wKzQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxRRbJTnNlGX9aJJVJFwoxsOKoHa9GVQ7CUJb4Jk_YsXeanI1P08bZ0eelbYjjxoJ22XA/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -8,6 +8,7 @@ let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
+let questionPollInterval;  // Polling refresh soal saat ujian berlangsung
 let isFinishingExam = false; 
 
 // Menyimpan ukuran layar awal untuk deteksi manipulasi Split Screen (Layar Belah HP)
@@ -169,11 +170,47 @@ async function fetchExamPackage() {
             examQuestions = data.questions;
             activeIndex = 0;
             renderCbtDashboard();
+            // Mulai polling soal setiap 30 detik agar perubahan admin langsung terlihat
+            startQuestionPolling();
         } else {
             alert(data.message || "Tidak ada paket ujian aktif.");
             autoSubmitExam("Paket Tidak Tersedia");
         }
     } catch (err) { alert("Gagal mengambil paket soal."); }
+}
+
+// Polling soal secara berkala — update pertanyaan & opsi tanpa hapus jawaban siswa
+function startQuestionPolling() {
+    clearInterval(questionPollInterval);
+    questionPollInterval = setInterval(async () => {
+        if (isFinishingExam) { clearInterval(questionPollInterval); return; }
+        const nisn = localStorage.getItem('nisn');
+        try {
+            const res = await fetch(`${API_URL}?action=getQuestion&nisn=${nisn}&token=${sessionToken}`);
+            const data = await res.json();
+            if (data.status === "success" && data.questions && data.questions.length > 0) {
+                // Update soal tanpa reset jawaban & posisi
+                examQuestions = data.questions.map((newQ, idx) => {
+                    // Pertahankan mapping opsi acak dari soal asli jika ada
+                    const oldQ = examQuestions[idx];
+                    return oldQ ? { ...newQ, mapA: oldQ.mapA, mapB: oldQ.mapB, mapC: oldQ.mapC, mapD: oldQ.mapD, mapE: oldQ.mapE } : newQ;
+                });
+                renderCbtDashboard();
+                showSoalUpdateBanner();
+            }
+        } catch (err) { /* Silent — jangan ganggu ujian jika polling gagal */ }
+    }, 30000); // Setiap 30 detik
+}
+
+function showSoalUpdateBanner() {
+    const existing = document.getElementById('soal-update-banner');
+    if (existing) { existing.remove(); }
+    const banner = document.createElement('div');
+    banner.id = 'soal-update-banner';
+    banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce';
+    banner.innerHTML = '<i class="fa-solid fa-rotate mr-1"></i> Soal diperbarui oleh admin';
+    document.body.appendChild(banner);
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 3500);
 }
 
 function renderCbtDashboard() {
@@ -334,6 +371,7 @@ async function logViolationToAPI(type) {
 
 function autoSubmitExam(reason) {
     clearInterval(timerInterval);
+    clearInterval(questionPollInterval);
     isFinishingExam = true;
     if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
 
@@ -355,7 +393,8 @@ function autoSubmitExam(reason) {
 }
 
 function finishExam() { 
-    clearInterval(timerInterval); 
+    clearInterval(timerInterval);
+    clearInterval(questionPollInterval);
     isFinishingExam = true;
     
     if (document.fullscreenElement && document.exitFullscreen) {
