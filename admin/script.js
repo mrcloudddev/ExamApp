@@ -57,12 +57,59 @@ let soalCache = [];
 
 function renderSoalTable(list) {
     soalCache = list;
-    const tbody = document.getElementById('soal-table-body'); if (!tbody) return; tbody.innerHTML = '';
-    list.forEach(item => {
+
+    // Populate dropdown mapel dari data unik
+    const mapelSet = [...new Set(list.map(s => s.mapel).filter(Boolean))].sort();
+    const mapelSelect = document.getElementById('soal-filter-mapel');
+    if (mapelSelect) {
+        const prev = mapelSelect.value;
+        mapelSelect.innerHTML = '<option value="">Semua Mapel</option>';
+        mapelSet.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; mapelSelect.appendChild(o); });
+        mapelSelect.value = prev; // pertahankan pilihan sebelumnya
+    }
+
+    applyFilterSoal();
+}
+
+function applyFilterSoal() {
+    const text = (document.getElementById('soal-filter-text')?.value || '').toLowerCase().trim();
+    const mapel = (document.getElementById('soal-filter-mapel')?.value || '').toLowerCase();
+    const kunci = (document.getElementById('soal-filter-kunci')?.value || '').toLowerCase();
+
+    const filtered = soalCache.filter(item => {
+        const matchText = !text ||
+            String(item.id_soal).toLowerCase().includes(text) ||
+            String(item.mapel).toLowerCase().includes(text) ||
+            String(item.pertanyaan).toLowerCase().includes(text);
+        const matchMapel = !mapel || String(item.mapel).toLowerCase() === mapel;
+        const matchKunci = !kunci || String(item.kunci).toLowerCase() === kunci;
+        return matchText && matchMapel && matchKunci;
+    });
+
+    const badge = document.getElementById('soal-count-badge');
+    if (badge) badge.textContent = `${filtered.length} / ${soalCache.length} soal`;
+
+    const tbody = document.getElementById('soal-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">Tidak ada soal yang cocok dengan filter.</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(item => {
         let tr = document.createElement('tr'); tr.className = "hover:bg-slate-900/40 border-b border-slate-800/40 text-slate-300";
         tr.innerHTML = `<td class="p-4 font-mono text-emerald-400 font-bold">${item.id_soal}</td><td class="p-4 font-semibold text-slate-400">${item.mapel}</td><td class="p-4 text-white truncate max-w-xs">${item.pertanyaan}</td><td class="p-4 text-center"><span class="bg-indigo-500/20 text-indigo-400 font-bold px-2 py-0.5 rounded uppercase">${item.kunci}</span></td><td class="p-4 text-right font-mono">${item.bobot}</td><td class="p-4 text-center"><button onclick="openEditModal('${item.id_soal}')" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-pen-to-square mr-1"></i>Edit</button></td>`;
         tbody.appendChild(tr);
     });
+}
+
+function resetFilterSoal() {
+    const txt = document.getElementById('soal-filter-text'); if (txt) txt.value = '';
+    const mp = document.getElementById('soal-filter-mapel'); if (mp) mp.value = '';
+    const kn = document.getElementById('soal-filter-kunci'); if (kn) kn.value = '';
+    applyFilterSoal();
 }
 
 function openEditModal(idSoal) {
