@@ -102,7 +102,7 @@
 
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
                     <div class="p-5 border-b border-slate-800"><h3 class="font-bold text-sm text-white"><i class="fa-solid fa-folder-open text-emerald-400 mr-1"></i>Repositori Bank Soal</h3></div>
-                    <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">ID Soal</th><th class="p-4">Mata Pelajaran</th><th class="p-4 w-1/2">Pertanyaan</th><th class="p-4 text-center">Kunci</th><th class="p-4 text-right">Bobot</th></tr></thead><tbody id="soal-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="5" class="p-8 text-center text-slate-500">Memuat repositori bank soal...</td></tr></tbody></table></div>
+                    <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">ID Soal</th><th class="p-4">Mata Pelajaran</th><th class="p-4 w-1/2">Pertanyaan</th><th class="p-4 text-center">Kunci</th><th class="p-4 text-right">Bobot</th><th class="p-4 text-center">Aksi</th></tr></thead><tbody id="soal-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="6" class="p-8 text-center text-slate-500">Memuat repositori bank soal...</td></tr></tbody></table></div>
                 </section>
             </div>
 
@@ -189,6 +189,48 @@
                 </section>
             </div>
         </main>
+    </div>
+
+    <!-- MODAL EDIT SOAL -->
+    <div id="modal-edit-soal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7)">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between p-5 border-b border-slate-800">
+                <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2"><i class="fa-solid fa-pen-to-square"></i> Edit Soal <span id="edit-soal-id-label" class="text-slate-400 font-mono text-xs"></span></h3>
+                <button onclick="closeEditModal()" class="text-slate-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="edit-id-soal-original">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">ID Soal</label><input type="text" id="edit-id-soal" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Mata Pelajaran</label><input type="text" id="edit-mapel" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bobot</label><input type="number" id="edit-bobot" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                </div>
+                <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Narasi Pertanyaan</label><textarea id="edit-pertanyaan" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></textarea></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">URL Gambar <span class="text-slate-600 normal-case font-normal">(opsional)</span></label><input type="url" id="edit-gambar-url" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs outline-none"></div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi A</label><input type="text" id="edit-opsi-a" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi B</label><input type="text" id="edit-opsi-b" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi C</label><input type="text" id="edit-opsi-c" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi D</label><input type="text" id="edit-opsi-d" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Opsi E</label><input type="text" id="edit-opsi-e" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs"></div>
+                </div>
+                <div class="flex justify-between items-center pt-2">
+                    <div class="w-1/4"><label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kunci Valid</label>
+                        <select id="edit-kunci" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white text-xs font-bold">
+                            <option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option><option value="e">E</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="closeEditModal()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all">Batal</button>
+                        <button id="btn-submit-edit-soal" onclick="submitEditSoal()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-all"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Perubahan</button>
+                    </div>
+                </div>
+                <div id="edit-soal-notice" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-[11px]">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    <strong>Perubahan langsung aktif</strong> — siswa yang sedang ujian akan melihat soal terbaru dalam ~30 detik.
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
