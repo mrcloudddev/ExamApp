@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxRRbJTnNlGX9aJJVJFwoxsOKoHa9GVQ7CUJb4Jk_YsXeanI1P08bZ0eelbYjjxoJ22XA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwBiHVR5WZEgcgHY-a7XqPYHMedZOhTB8ZpzTZQ_P77-8FtJbap92w4vuFrN-8wJTouvg/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -130,10 +130,23 @@ function renderJadwalTable(list) {
     if(!list || list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-600">Belum ada pengaturan gerbang.</td></tr>`; return; }
     list.forEach(item => {
         let isOff = item.sesi === "OFF";
+        let isTutup = item.gerbang === "TUTUP";
         let tr = document.createElement('tr'); tr.className = isOff ? "opacity-40 bg-slate-900/10 text-slate-500" : "bg-slate-900/40 text-slate-300 font-medium";
-        tr.innerHTML = `<td class="p-3 font-bold text-white">${item.kelas}</td><td class="p-3 font-mono text-amber-400">${item.sesi}</td><td class="p-3 font-mono text-indigo-400">${item.paket}</td><td class="p-3 text-right text-[11px]">${isOff ? 'KUNCI':'BUKA'}</td>`;
+        let statusBtn = isOff ? `<span class="text-slate-600 text-[11px] font-bold">—</span>` :
+            isTutup
+            ? `<button onclick="toggleGerbang('${item.kelas}','BUKA')" class="bg-red-500/15 hover:bg-red-500/30 border border-red-500/40 text-red-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-lock mr-1"></i>TUTUP</button>`
+            : `<button onclick="toggleGerbang('${item.kelas}','TUTUP')" class="bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-lock-open mr-1"></i>BUKA</button>`;
+        tr.innerHTML = `<td class="p-3 font-bold text-white">${item.kelas}</td><td class="p-3 font-mono text-amber-400">${item.sesi}</td><td class="p-3 font-mono text-indigo-400">${item.paket}</td><td class="p-3 text-right">${statusBtn}</td>`;
         tbody.appendChild(tr);
     });
+}
+
+async function toggleGerbang(kelas, statusBaru) {
+    try {
+        const body = new URLSearchParams({ action: 'toggleGerbang', kelas: kelas, status: statusBaru });
+        await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        await refreshData();
+    } catch(err) { alert('Gagal mengubah status gerbang.'); }
 }
 
 // --- FORM HANDLERS (POST METHOD) ---
