@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbz7eiX4CpI7O1mZ4c2GGFO-S1bqAGyU4GUN-26YlIKNHZ2J1HeqNWCTtyY7Bkr2VG2_rA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbznXoVnlNGDKnrcgUr5VhVsjSOaMTUhUFCxu4tnGD4vTBbkr01ACHS0xad1VsAAV6wKzQ/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -181,7 +181,26 @@ function renderCbtDashboard() {
     const currentQuestion = examQuestions[activeIndex];
     
     document.getElementById('current-question-num').innerText = activeIndex + 1;
-    document.getElementById('question-text').innerText = currentQuestion.pertanyaan;
+
+    // Render teks soal (support teks biasa)
+    const qTextEl = document.getElementById('question-text');
+    qTextEl.textContent = currentQuestion.pertanyaan;
+
+    // Render gambar soal jika ada (field gambar_url dari server)
+    const imgWrap = document.getElementById('question-image-wrap');
+    const imgEl = document.getElementById('question-image');
+    if (currentQuestion.gambar_url && currentQuestion.gambar_url.trim() !== '') {
+        imgEl.src = currentQuestion.gambar_url.trim();
+        imgWrap.classList.remove('hidden');
+    } else {
+        imgWrap.classList.add('hidden');
+        imgEl.src = '';
+    }
+
+    // Trigger MathJax render ulang untuk soal matematika
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([document.getElementById('question-container')]).catch(()=>{});
+    }
 
     const optContainer = document.getElementById('options-container');
     optContainer.innerHTML = '';
@@ -243,12 +262,15 @@ function saveAnswerToCloud(idSoal, jawaban) {
 
 document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
   if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
-      isFinishingExam = true; 
+      isFinishingExam = true;
+      const btn = document.getElementById('btn-finish-trigger');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Mengirim jawaban...';
       const nisn = localStorage.getItem('nisn');
       try {
           await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
-          finishExam();
-      } catch(e) { finishExam(); }
+      } catch(e) { /* tetap lanjut ke halaman selesai */ }
+      finishExam();
   }
 });
 
@@ -294,12 +316,26 @@ async function logViolationToAPI(type) {
     navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type })); 
 }
 
-function autoSubmitExam(reason) { 
-    clearInterval(timerInterval); 
+function autoSubmitExam(reason) {
+    clearInterval(timerInterval);
     isFinishingExam = true;
-    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); 
-    alert(`Ujian selesai: ${reason}`); 
-    finishExam(); 
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+
+    if (reason === "Melebihi Batas Toleransi Kecurangan") {
+        const nisn = localStorage.getItem('nisn');
+        navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetStatusSiswa', nisn: nisn }));
+        alert("\u26a0\ufe0f Anda telah melakukan 3 pelanggaran!\nSesi dihentikan. Lapor ke pengawas, lalu login ulang untuk mengerjakan kembali.");
+        sessionToken = ""; examQuestions = []; studentAnswers = {}; doubtfulQuestions = {};
+        activeIndex = 0; violationCount = 0; isFinishingExam = false;
+        switchPage('login');
+        document.getElementById('exam-timer').classList.add('hidden');
+        document.getElementById('input-nisn').value = '';
+        document.getElementById('input-pin').value = '';
+        return;
+    }
+
+    alert(`Ujian selesai: ${reason}`);
+    finishExam();
 }
 
 function finishExam() { 
