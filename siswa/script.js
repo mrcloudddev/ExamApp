@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbza70DdM7lJuR4YTDimoiNmsB_rP4g1q6aSeIsJ6TbhEjOJ08jBfl1YMnQjzqsy7B7VZg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz7eiX4CpI7O1mZ4c2GGFO-S1bqAGyU4GUN-26YlIKNHZ2J1HeqNWCTtyY7Bkr2VG2_rA/exec";
 
 let sessionToken = "";
 let examQuestions = [];
