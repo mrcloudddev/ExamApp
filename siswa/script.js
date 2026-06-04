@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxbplQ7qpH65vQVUE2HQeednqMwrzCBjRe7fCQaq8gL2k42dCUwrVvkDde-dTD68TQJ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbza70DdM7lJuR4YTDimoiNmsB_rP4g1q6aSeIsJ6TbhEjOJ08jBfl1YMnQjzqsy7B7VZg/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -112,6 +112,12 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         const response = await fetch(`${API_URL}?action=login&nisn=${nisn}&pin=${pin}`);
         const data = await response.json();
         if (data.status === "success") {
+            // Cek apakah akses ujian siswa ini dibuka atau ditutup admin
+            if (data.aksesUjian === 'TUTUP') {
+                alert('Akses ujian Anda saat ini ditutup oleh admin. Silakan hubungi pengawas untuk membuka akses.');
+                btn.disabled = false; btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
+                return;
+            }
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
             localStorage.setItem('namaSiswa', data.nama || nisn);
