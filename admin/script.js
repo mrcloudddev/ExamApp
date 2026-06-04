@@ -276,16 +276,40 @@ async function submitEditSoal() {
 
 function renderJadwalTable(list) {
     const tbody = document.getElementById('jadwal-table-body'); if (!tbody) return; tbody.innerHTML = '';
-    if(!list || list.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-600">Belum ada pengaturan gerbang.</td></tr>`; return; }
+    if(!list || list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-600">Belum ada pengaturan gerbang.</td></tr>`; return; }
     list.forEach(item => {
         let isOff = item.sesi === "OFF";
         let isTutup = item.gerbang === "TUTUP";
+
+        // Format waktu mulai
+        let waktuMulaiStr = '-';
+        if (item.waktu_mulai && item.waktu_mulai > 0) {
+            const d = new Date(item.waktu_mulai * 1000);
+            waktuMulaiStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // Hitung sisa waktu berjalan
+        let sisaStr = '-';
+        if (!isOff && item.waktu_mulai > 0 && item.durasi_menit > 0) {
+            const durDetik = item.durasi_menit * 60;
+            const elapsed = Math.floor(Date.now() / 1000) - item.waktu_mulai;
+            const sisa = durDetik - elapsed;
+            if (sisa > 0) {
+                const m = Math.floor(sisa / 60), s = sisa % 60;
+                sisaStr = `<span class="text-amber-400 font-mono font-bold">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</span> <span class="text-slate-500">sisa</span>`;
+            } else {
+                sisaStr = `<span class="text-rose-400 font-bold text-[10px]">HABIS</span>`;
+            }
+        }
+
         let tr = document.createElement('tr'); tr.className = isOff ? "opacity-40 bg-slate-900/10 text-slate-500" : "bg-slate-900/40 text-slate-300 font-medium";
         let statusBtn = isOff ? `<span class="text-slate-600 text-[11px] font-bold">—</span>` :
             isTutup
             ? `<button onclick="toggleGerbang('${item.kelas}','BUKA')" class="bg-red-500/15 hover:bg-red-500/30 border border-red-500/40 text-red-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-lock mr-1"></i>TUTUP</button>`
             : `<button onclick="toggleGerbang('${item.kelas}','TUTUP')" class="bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-lock-open mr-1"></i>BUKA</button>`;
-        tr.innerHTML = `<td class="p-3 font-bold text-white">${item.kelas}</td><td class="p-3 font-mono text-amber-400">${item.sesi}</td><td class="p-3 font-mono text-indigo-400">${item.paket}</td><td class="p-3 text-right">${statusBtn}</td>`;
+        const durasiStr  = (item.durasi_menit && item.durasi_menit > 0) ? (item.durasi_menit + ' mnt') : '— belum diset';
+        const waktuKolom = (item.waktu_mulai && item.waktu_mulai > 0) ? (waktuMulaiStr + (!isOff ? '<br>' + sisaStr : '')) : '—';
+        tr.innerHTML = `<td class="p-3 font-bold text-white">${item.kelas}</td><td class="p-3 font-mono text-amber-400">${item.sesi}</td><td class="p-3 font-mono text-indigo-400">${item.paket}</td><td class="p-3 text-center text-slate-300">${durasiStr}</td><td class="p-3 text-center text-slate-400 font-mono text-[11px]">${waktuKolom}</td><td class="p-3 text-right">${statusBtn}</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -317,11 +341,23 @@ document.getElementById('form-input-soal').addEventListener('submit', async (e) 
 
 document.getElementById('form-kontrol-jadwal').addEventListener('submit', async (e) => {
     e.preventDefault(); const btn = document.getElementById('btn-submit-jadwal'); btn.disabled = true;
-    const paramData = { action: 'updateJadwalKontrol', kelas: document.getElementById('set-kelas').value, sesi: document.getElementById('set-sesi').value, paket: document.getElementById('set-paket').value };
+    const sesi = document.getElementById('set-sesi').value;
+    const durasi = parseInt(document.getElementById('set-durasi').value) || 60;
+    // Catat waktu mulai ujian dalam Unix timestamp (detik) saat admin tekan Terapkan
+    // Hanya dicatat jika sesi BUKAN OFF
+    const waktuMulai = sesi !== 'OFF' ? Math.floor(Date.now() / 1000) : 0;
+    const paramData = {
+        action: 'updateJadwalKontrol',
+        kelas: document.getElementById('set-kelas').value,
+        sesi: sesi,
+        paket: document.getElementById('set-paket').value,
+        durasi_menit: durasi,
+        waktu_mulai: waktuMulai
+    };
     try {
         await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(paramData) });
         alert("Jadwal kelas berhasil diubah!"); refreshData();
-    } catch(err) { alert("Gagal ubah jadwal."); } finally { btn.disabled = false; btn.innerHTML = 'Terapkan Perubahan'; }
+    } catch(err) { alert("Gagal ubah jadwal."); } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-toggle-on"></i> Terapkan Perubahan'; }
 });
 
 // ============================================================
