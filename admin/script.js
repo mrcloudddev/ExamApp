@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbz7eiX4CpI7O1mZ4c2GGFO-S1bqAGyU4GUN-26YlIKNHZ2J1HeqNWCTtyY7Bkr2VG2_rA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbznXoVnlNGDKnrcgUr5VhVsjSOaMTUhUFCxu4tnGD4vTBbkr01ACHS0xad1VsAAV6wKzQ/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -80,7 +80,8 @@ document.getElementById('form-input-soal').addEventListener('submit', async (e) 
         pertanyaan: document.getElementById('add-pertanyaan').value, opsi_a: document.getElementById('add-opsi-a').value, opsi_b: document.getElementById('add-opsi-b').value,
         opsi_c: document.getElementById('add-opsi-c').value, opsi_d: document.getElementById('add-opsi-d').value, opsi_e: document.getElementById('add-opsi-e').value,
         kunci: document.getElementById('add-kunci').value, bobot: document.getElementById('add-bobot').value,
-        target_kelas: document.getElementById('add-target-kelas').value, sesi_soal: document.getElementById('add-sesi-soal').value, paket_soal: document.getElementById('add-paket-soal').value
+        target_kelas: document.getElementById('add-target-kelas').value, sesi_soal: document.getElementById('add-sesi-soal').value, paket_soal: document.getElementById('add-paket-soal').value,
+        gambar_url: document.getElementById('add-gambar-url').value || ""
     };
     try {
         await fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(paramData) });
