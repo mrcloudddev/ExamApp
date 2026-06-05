@@ -317,11 +317,13 @@ function renderCbtDashboard() {
             btn.onclick = () => {
                 document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
                 btn.classList.add('selected');
+                // Simpan key tampilan (a/b/c/d/e) untuk keperluan highlight UI
                 studentAnswers[currentQuestion.id_soal] = key;
                 
-                // Konversi kunci dinamis kembali ke index aslinya agar kalkulasi nilai di spreadsheet tetap akurat
+                // Konversi ke kunci asli untuk dikirim ke server & disimpan localStorage
                 let properKey = currentQuestion[`map${key.toUpperCase()}`] || key;
-                saveAnswerToCloud(currentQuestion.id_soal, properKey);
+                // Simpan key tampilan ke localStorage (bukan properKey) agar restore highlight akurat
+                saveAnswerToCloud(currentQuestion.id_soal, properKey, key);
                 renderGridIndicators();
             };
             btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>`;
@@ -354,12 +356,13 @@ function renderGridIndicators() {
     });
 }
 
-function saveAnswerToCloud(idSoal, jawaban) {
+function saveAnswerToCloud(idSoal, jawaban, displayKey) {
     const nisn = localStorage.getItem('nisn');
 
-    // Simpan ke localStorage sebagai backup tampilan setelah reload
+    // Simpan key TAMPILAN (a/b/c/d/e) ke localStorage agar highlight UI bisa di-restore
+    // jawaban = kunci asli untuk server, displayKey = huruf yang tampil ke siswa
     const savedAnswers = JSON.parse(localStorage.getItem('studentAnswers') || '{}');
-    savedAnswers[idSoal] = jawaban;
+    savedAnswers[idSoal] = displayKey || jawaban;
     localStorage.setItem('studentAnswers', JSON.stringify(savedAnswers));
     localStorage.setItem('activeIndex', activeIndex);
 
