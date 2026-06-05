@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxJ94eLKeYbphaR2qzQIM4WZgW0xTX725MrNY_JjBApnByDjirpTnJ8wLG4fuGBCYge5A/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxW1ajAdiMMvVXLdTalmtP0dDi_ETcV2UsUqIX2B-ft_FXHy8gOTcSpaorx24Rdhcgdiw/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -114,15 +114,21 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// resize — hanya desktop (keyboard virtual Android/iOS memicu resize besar)
+// resize — deteksi split screen
+// Keyboard virtual Android/iOS hanya mengubah tinggi, bukan lebar
+// Split screen mengubah lebar secara signifikan → deteksi dari lebar saja di mobile
 window.addEventListener('resize', () => {
-    if (isFinishingExam || isMobile || keyboardOpen || examJustStarted) return;
+    if (isFinishingExam || keyboardOpen || examJustStarted) return;
     if (sessionToken &&
         pages.login.classList.contains('hidden') &&
         pages.finish.classList.contains('hidden') &&
         pages.instruction.classList.contains('hidden')) {
-        if (Math.abs(window.innerWidth  - initialWidth)  > initialWidth  * 0.15 ||
-            Math.abs(window.innerHeight - initialHeight) > initialHeight * 0.15) {
+        const lebarBerubah   = Math.abs(window.innerWidth  - initialWidth)  > initialWidth  * 0.15;
+        const tinggiBerubah  = Math.abs(window.innerHeight - initialHeight) > initialHeight * 0.15;
+        // Mobile: hanya deteksi dari lebar (keyboard virtual tidak ubah lebar)
+        // Desktop: deteksi dari lebar atau tinggi
+        const isSplitScreen  = isMobile ? lebarBerubah : (lebarBerubah || tinggiBerubah);
+        if (isSplitScreen) {
             triggerViolation("Terdeteksi Split Screen / Layar Belah");
             initialWidth  = window.innerWidth;
             initialHeight = window.innerHeight;
@@ -157,12 +163,15 @@ function triggerViolation(type) {
 }
 
 document.getElementById('btn-resume').addEventListener('click', () => {
-    if (document.documentElement.requestFullscreen && !isMobile) {
+    if (document.documentElement.requestFullscreen && !isIOS) {
         document.documentElement.requestFullscreen().then(() => {
             document.getElementById('blocker-overlay').classList.add('hidden');
             initialWidth  = window.innerWidth;
             initialHeight = window.innerHeight;
-        }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
+        }).catch(() => {
+            // Kalau gagal (user tolak), tetap tutup blocker
+            document.getElementById('blocker-overlay').classList.add('hidden');
+        });
     } else {
         document.getElementById('blocker-overlay').classList.add('hidden');
     }
