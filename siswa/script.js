@@ -166,6 +166,11 @@ async function fetchExamPackage() {
         if (data.status === "success") {
             examQuestions = data.questions;
             activeIndex = 0;
+
+            // Restore jawaban dari localStorage (backup tampilan setelah reload)
+            const savedAnswers = JSON.parse(localStorage.getItem('studentAnswers') || '{}');
+            studentAnswers = savedAnswers;
+
             renderCbtDashboard();
 
             // Gunakan sisa_waktu dari server jika tersedia (dalam detik)
@@ -350,6 +355,12 @@ function renderGridIndicators() {
 
 function saveAnswerToCloud(idSoal, jawaban) {
     const nisn = localStorage.getItem('nisn');
+
+    // Simpan ke localStorage sebagai backup tampilan (nilai tetap dari spreadsheet)
+    const savedAnswers = JSON.parse(localStorage.getItem('studentAnswers') || '{}');
+    savedAnswers[idSoal] = jawaban;
+    localStorage.setItem('studentAnswers', JSON.stringify(savedAnswers));
+
     fetch(API_URL, {
         method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ action: 'submitAnswer', nisn: nisn, token: sessionToken, id_soal: idSoal, jawaban: jawaban })
@@ -421,6 +432,7 @@ function autoSubmitExam(reason) {
     if (reason === "Melebihi Batas Toleransi Kecurangan") {
         const nisn = localStorage.getItem('nisn');
         navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetStatusSiswa', nisn: nisn }));
+        localStorage.removeItem('studentAnswers'); // bersihkan backup
         alert("\u26a0\ufe0f Anda telah melakukan 3 pelanggaran!\nSesi dihentikan. Lapor ke pengawas, lalu login ulang untuk mengerjakan kembali.");
         sessionToken = ""; examQuestions = []; studentAnswers = {}; doubtfulQuestions = {};
         activeIndex = 0; violationCount = 0; isFinishingExam = false;
@@ -439,6 +451,9 @@ function finishExam() {
     clearInterval(timerInterval);
     clearInterval(questionPollInterval);
     isFinishingExam = true;
+
+    // Bersihkan backup jawaban — ujian sudah selesai, nilai dari spreadsheet
+    localStorage.removeItem('studentAnswers');
     
     if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
