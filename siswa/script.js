@@ -8,7 +8,6 @@ let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
-let questionPollInterval;  // Polling refresh soal saat ujian berlangsung
 let isFinishingExam = false; 
 
 // Menyimpan ukuran layar awal untuk deteksi manipulasi Split Screen (Layar Belah HP)
@@ -122,6 +121,11 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
             localStorage.setItem('namaSiswa', data.nama || nisn);
+            // Bersihkan jawaban & posisi dari sesi sebelumnya
+            localStorage.removeItem('studentAnswers');
+            localStorage.removeItem('activeIndex');
+            studentAnswers = {};
+            activeIndex = 0;
             switchPage('instruction');
         } else {
             alert(data.message || "Kredensial Anda salah!");
@@ -188,78 +192,11 @@ async function fetchExamPackage() {
             }
 
             startTimer(sisaWaktu);
-            startQuestionPolling();
         } else {
             alert(data.message || "Tidak ada paket ujian aktif.");
             autoSubmitExam("Paket Tidak Tersedia");
         }
     } catch (err) { alert("Gagal mengambil paket soal."); }
-}
-
-// Polling soal secara berkala — update pertanyaan & opsi tanpa hapus jawaban siswa
-function startQuestionPolling() {
-    clearInterval(questionPollInterval);
-    questionPollInterval = setInterval(async () => {
-        if (isFinishingExam) { clearInterval(questionPollInterval); return; }
-        const nisn = localStorage.getItem('nisn');
-        try {
-            const res = await fetch(`${API_URL}?action=getQuestion&nisn=${nisn}&token=${sessionToken}`);
-            const data = await res.json();
-            if (data.status === "success" && data.questions && data.questions.length > 0) {
-                // Buat peta soal lama berdasarkan id_soal agar merge akurat (bukan berdasarkan index)
-                const oldQMap = {};
-                examQuestions.forEach(q => { oldQMap[q.id_soal] = q; });
-
-                // Untuk setiap soal baru dari server:
-                // - Jika id_soal sudah ada di soal lama → pertahankan SEMUA data lama
-                //   (termasuk opsi & mapping acak yang sudah dilihat siswa)
-                //   tapi update hanya teks pertanyaan & gambar (konten substantif)
-                // - Jika id_soal benar-benar baru → gunakan data baru sepenuhnya
-                const updatedQuestions = data.questions.map(newQ => {
-                    const oldQ = oldQMap[newQ.id_soal];
-                    if (oldQ) {
-                        // Pertahankan urutan opsi & mapping yang sudah tampil ke siswa
-                        return {
-                            ...oldQ,
-                            pertanyaan: newQ.pertanyaan,  // update teks soal jika diubah admin
-                            gambar_url: newQ.gambar_url   // update gambar jika diubah admin
-                        };
-                    }
-                    return newQ; // soal baru, pakai data fresh
-                });
-
-                // Pertahankan urutan soal yang sudah diacak sebelumnya (jangan acak ulang)
-                // Soal lama tetap di posisinya; soal baru (jika ada) ditambahkan di akhir
-                const existingIds = examQuestions.map(q => q.id_soal);
-                const newIds = updatedQuestions.map(q => q.id_soal);
-                const updatedMap = {};
-                updatedQuestions.forEach(q => { updatedMap[q.id_soal] = q; });
-
-                // Rebuild: soal lama dengan data terupdate, lalu soal baru yang belum ada
-                const merged = examQuestions
-                    .filter(q => newIds.includes(q.id_soal))  // buang soal yang dihapus admin
-                    .map(q => updatedMap[q.id_soal]);          // update data soal yang ada
-                updatedQuestions.forEach(q => {
-                    if (!existingIds.includes(q.id_soal)) merged.push(q); // tambah soal baru
-                });
-
-                examQuestions = merged;
-                renderCbtDashboard();
-                showSoalUpdateBanner();
-            }
-        } catch (err) { /* Silent — jangan ganggu ujian jika polling gagal */ }
-    }, 30000); // Setiap 30 detik
-}
-
-function showSoalUpdateBanner() {
-    const existing = document.getElementById('soal-update-banner');
-    if (existing) { existing.remove(); }
-    const banner = document.createElement('div');
-    banner.id = 'soal-update-banner';
-    banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce';
-    banner.innerHTML = '<i class="fa-solid fa-rotate mr-1"></i> Soal diperbarui oleh admin';
-    document.body.appendChild(banner);
-    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 3500);
 }
 
 function renderCbtDashboard() {
@@ -430,7 +367,6 @@ async function logViolationToAPI(type) {
 
 function autoSubmitExam(reason) {
     clearInterval(timerInterval);
-    clearInterval(questionPollInterval);
     isFinishingExam = true;
     if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
 
@@ -455,7 +391,6 @@ function autoSubmitExam(reason) {
 
 function finishExam() { 
     clearInterval(timerInterval);
-    clearInterval(questionPollInterval);
     isFinishingExam = true;
 
     // Bersihkan backup — nilai sudah aman di spreadsheet
