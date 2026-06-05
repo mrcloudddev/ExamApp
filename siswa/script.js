@@ -358,16 +358,37 @@ function renderQuestion() {
     const imgEl   = document.getElementById('question-image');
     if (q.gambar_url && q.gambar_url.trim()) {
         let imgUrl = q.gambar_url.trim();
+        // Google Drive
         const driveMatch = imgUrl.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]{25,})/);
         if (driveMatch) imgUrl = `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w800`;
-        imgEl.src = imgUrl;
-        imgEl.onerror = () => {
+        // Blogger/Blogspot — ganti ukuran apapun (/s335/, /w640-h480/, dll) ke /s800/
+        // agar tidak kena redirect chain yang sering block di Android/iOS WebView
+        else if (/blogger\.googleusercontent\.com|bp\.blogspot\.com/.test(imgUrl)) {
+            imgUrl = imgUrl.replace(/\/s\d+(-[^/]+)?\//, '/s800/');
+        }
+
+        // Reset src dulu agar loading gambar lama dibatalkan (cegah UI hang)
+        imgEl.src = '';
+        imgEl.style.opacity = '0';
+        imgEl.onload  = null;
+        imgEl.onerror = null;
+
+        imgWrap.classList.remove('hidden');
+
+        // Lazy-load gambar secara async — UI tidak blocking
+        const newImg = new Image();
+        newImg.onload = () => {
+            imgEl.src = imgUrl;
+            imgEl.style.opacity = '1';
+        };
+        newImg.onerror = () => {
             imgWrap.innerHTML = '<p class="text-xs text-rose-400 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Gambar tidak dapat dimuat.</p>';
         };
-        imgWrap.classList.remove('hidden');
+        newImg.src = imgUrl;
     } else {
         imgWrap.classList.add('hidden');
         imgEl.src = '';
+        imgEl.style.opacity = '1';
     }
 
     if (window.MathJax && window.MathJax.typesetPromise) {
