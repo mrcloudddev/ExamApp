@@ -152,6 +152,17 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
 // --- CBT CORE SYSTEM ---
 async function fetchExamPackage() {
     const nisn = localStorage.getItem('nisn');
+
+    // Reset state sebelum fetch — cegah grid/opsi lama masih aktif saat reload soal
+    examQuestions = [];
+    studentAnswers = {};
+    doubtfulQuestions = {};
+    activeIndex = 0;
+    document.getElementById('question-grid').innerHTML = '';
+    document.getElementById('options-container').innerHTML = '';
+    // Pastikan pointer events tidak pernah tertinggal terkunci dari sesi sebelumnya
+    document.getElementById('options-container').style.pointerEvents = '';
+
     try {
         const res = await fetch(`${API_URL}?action=getQuestion&nisn=${nisn}&token=${sessionToken}`);
         const data = await res.json();
@@ -255,15 +266,11 @@ function renderCbtDashboard() {
             if (currentDisplayKey === key) btn.classList.add('selected');
 
             btn.onclick = () => {
-                // FIX #2 — Matikan semua pointer event sementara (anti-double-click lag)
-                optContainer.style.pointerEvents = 'none';
-
                 document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
                 btn.classList.add('selected');
 
                 const originalKey = currentQuestion[`map${key.toUpperCase()}`] || key;
 
-                // Simpan keduanya: displayKey untuk UI, originalKey untuk server
                 studentAnswers[currentQuestion.id_soal] = {
                     displayKey: key,
                     originalKey: originalKey
@@ -271,9 +278,6 @@ function renderCbtDashboard() {
 
                 saveAnswerToCloud(currentQuestion.id_soal, originalKey, key);
                 scheduleGridRender();
-
-                // Re-enable pointer events setelah singkat (debounce anti-stag)
-                setTimeout(() => { optContainer.style.pointerEvents = ''; }, 300);
             };
 
             btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>`;
