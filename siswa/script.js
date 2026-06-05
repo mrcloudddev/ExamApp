@@ -10,7 +10,7 @@ const MAX_VIOLATIONS = 3;
 let timerInterval;
 let isFinishingExam = false;
 let examReady = false;
-let isNavigating = false;
+
 
 // ---------------------------------------------------------------
 // DETEKSI PLATFORM
@@ -234,13 +234,13 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
 // touchend + e.preventDefault() + passive:false = scroll macet
 // ---------------------------------------------------------------
 function goToIndex(idx) {
-    if (!examReady || isNavigating) return;
+    if (!examReady) return;
     if (idx < 0 || idx >= examQuestions.length) return;
-    isNavigating = true;
+
     activeIndex  = idx;
     localStorage.setItem('activeIndex', activeIndex);
     renderQuestion();
-    requestAnimationFrame(() => { isNavigating = false; });
+
 }
 
 document.getElementById('btn-next').addEventListener('click', () => goToIndex(activeIndex + 1));
@@ -367,7 +367,9 @@ function renderQuestion() {
     }
 
     if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([document.getElementById('question-container')]).catch(()=>{});
+        setTimeout(() => {
+            window.MathJax.typesetPromise([document.getElementById('question-container')]).catch(()=>{});
+        }, 0);
     }
 
     const saved = studentAnswers[q.id_soal];
