@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbzdaZ7lavtFtKIgV-lBkanwc-_WiSY3LjUg2zxjETy9gMta6izbzSt2BR4_nqmCbLyFrg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzXGQI0y9aAPbSEXnDc9nIkqIrnMGmNTrBOTa-mUx1P9R2OK2-UkkU2M0UiwL_U0NKhgg/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -107,8 +107,9 @@ window.addEventListener('blur', () => {
 document.addEventListener('visibilitychange', () => {
     if (isFinishingExam || keyboardOpen || examJustStarted) return;
     if (document.visibilityState === 'hidden' && sessionToken &&
-        !pages.finish.classList.contains('hidden') &&
-        !pages.instruction.classList.contains('hidden')) {
+        pages.login.classList.contains('hidden') &&
+        pages.finish.classList.contains('hidden') &&
+        pages.instruction.classList.contains('hidden')) {
         triggerViolation("Membuka Aplikasi Lain / Keluar Browser");
     }
 });
