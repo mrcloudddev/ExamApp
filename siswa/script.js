@@ -10,27 +10,44 @@ const MAX_VIOLATIONS = 3;
 let timerInterval;
 let isFinishingExam = false;
 let examReady = false;
-let isNavigating = false; // debounce navigasi — cegah double-tap di HP
+let isNavigating = false;
 
-let initialWidth = window.innerWidth;
+// ---------------------------------------------------------------
+// DETEKSI PLATFORM
+// ---------------------------------------------------------------
+const isIOS     = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isAndroid = /Android/i.test(navigator.userAgent);
+const isMobile  = isIOS || isAndroid || /Mobi/i.test(navigator.userAgent);
+const isSafari  = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+let initialWidth  = window.innerWidth;
 let initialHeight = window.innerHeight;
 
+// Deteksi keyboard virtual terbuka via visualViewport
+let keyboardOpen = false;
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        keyboardOpen = window.visualViewport.height < window.innerHeight * 0.80;
+    });
+}
+
+// Jeda singkat setelah mulai ujian agar resize/blur dari
+// proses fullscreen request tidak terhitung violation
+let examJustStarted = false;
+
 const pages = {
-    login: document.getElementById('login-page'),
+    login:       document.getElementById('login-page'),
     instruction: document.getElementById('instruction-page'),
-    exam: document.getElementById('exam-page'),
-    finish: document.getElementById('finish-page')
+    exam:        document.getElementById('exam-page'),
+    finish:      document.getElementById('finish-page')
 };
 
 // ---------------------------------------------------------------
-// PRE-BUILD opsi A-E sekali saja saat halaman load
-// Saat pindah soal hanya teks & status selected yang diupdate
-// TIDAK ada createElement / innerHTML = '' di setiap navigasi
+// PRE-BUILD opsi A–E sekali saat load
 // ---------------------------------------------------------------
-const OPT_KEYS = ['a','b','c','d','e'];
+const OPT_KEYS     = ['a','b','c','d','e'];
 const optContainer = document.getElementById('options-container');
 
-// Buat 5 tombol opsi permanen
 const optBtns = OPT_KEYS.map(key => {
     const btn = document.createElement('button');
     btn.className = "option-card w-full text-left bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
@@ -44,7 +61,7 @@ const optBtns = OPT_KEYS.map(key => {
 function onOptionClick(key) {
     if (!examReady) return;
     const q = examQuestions[activeIndex];
-    if (!q[`opsi_${key}`]) return; // tombol hidden, abaikan
+    if (!q[`opsi_${key}`]) return;
 
     optBtns.forEach(b => b.classList.remove('selected'));
     optBtns[OPT_KEYS.indexOf(key)].classList.add('selected');
@@ -52,46 +69,71 @@ function onOptionClick(key) {
     const originalKey = q[`map${key.toUpperCase()}`] || key;
     studentAnswers[q.id_soal] = { displayKey: key, originalKey };
     saveAnswerToCloud(q.id_soal, originalKey, key);
-    updateGridItem(activeIndex); // update 1 kotak grid saja
+    updateGridItem(activeIndex);
 }
 
-// --- SECURITIES GUARD ENGINE ---
+// ---------------------------------------------------------------
+// SECURITY GUARD
+// Strategi per platform:
+//   Desktop  : fullscreen paksa + semua violation aktif
+//   Android  : fullscreen request (imersif) + deteksi pindah app
+//              via visibilitychange, TANPA fullscreenchange
+//   iPhone   : tidak bisa fullscreen, deteksi pindah app
+//              via visibilitychange saja
+// ---------------------------------------------------------------
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
-    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'v')) {
+    if (e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+        (e.ctrlKey && e.key === 'c') ||
+        (e.ctrlKey && e.key === 'v')) {
         e.preventDefault();
         alert('Fitur proteksi aktif: Dilarang menyalin teks/membuka developer tools!');
     }
 });
 
+// blur — hanya desktop (di mobile keyboard virtual memicu blur)
 window.addEventListener('blur', () => {
-    if (isFinishingExam) return;
-    if (sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
+    if (isFinishingExam || isMobile || keyboardOpen || examJustStarted) return;
+    if (sessionToken &&
+        !pages.finish.classList.contains('hidden') &&
+        !pages.instruction.classList.contains('hidden')) {
         triggerViolation("Pindah Tab Browser / Keluar Aplikasi");
     }
 });
 
+// visibilitychange — aktif di SEMUA platform termasuk iOS & Android
+// Di mobile ini adalah satu-satunya cara andal deteksi pindah app
 document.addEventListener('visibilitychange', () => {
-    if (isFinishingExam) return;
-    if (document.visibilityState === 'hidden' && sessionToken && !pages.finish.classList.contains('hidden') && !pages.instruction.classList.contains('hidden')) {
-        triggerViolation("Membuka Aplikasi Lain (Halaman Tersembunyi)");
+    if (isFinishingExam || keyboardOpen || examJustStarted) return;
+    if (document.visibilityState === 'hidden' && sessionToken &&
+        !pages.finish.classList.contains('hidden') &&
+        !pages.instruction.classList.contains('hidden')) {
+        triggerViolation("Membuka Aplikasi Lain / Keluar Browser");
     }
 });
 
+// resize — hanya desktop (keyboard virtual Android/iOS memicu resize besar)
 window.addEventListener('resize', () => {
-    if (isFinishingExam) return;
-    if (sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
-        if (Math.abs(window.innerWidth - initialWidth) > initialWidth * 0.15 ||
+    if (isFinishingExam || isMobile || keyboardOpen || examJustStarted) return;
+    if (sessionToken &&
+        pages.login.classList.contains('hidden') &&
+        pages.finish.classList.contains('hidden') &&
+        pages.instruction.classList.contains('hidden')) {
+        if (Math.abs(window.innerWidth  - initialWidth)  > initialWidth  * 0.15 ||
             Math.abs(window.innerHeight - initialHeight) > initialHeight * 0.15) {
-            triggerViolation("Terdeteksi Split Screen (Layar Belah) / Pop-up Melayang");
-            initialWidth = window.innerWidth;
+            triggerViolation("Terdeteksi Split Screen / Layar Belah");
+            initialWidth  = window.innerWidth;
             initialHeight = window.innerHeight;
         }
     }
 });
 
+// fullscreenchange — hanya desktop
+// Android: notifikasi & status bar drop fullscreen sesaat → false-positive
+// iOS: tidak support fullscreen sama sekali
 document.addEventListener('fullscreenchange', () => {
-    if (isFinishingExam) return;
+    if (isFinishingExam || isMobile || examJustStarted) return;
     if (!document.fullscreenElement && sessionToken &&
         pages.login.classList.contains('hidden') &&
         pages.finish.classList.contains('hidden') &&
@@ -102,23 +144,22 @@ document.addEventListener('fullscreenchange', () => {
 
 function triggerViolation(type) {
     if (isFinishingExam) return;
-    if (type === "Keluar dari Mode Fullscreen" && !document.documentElement.requestFullscreen) return;
     violationCount++;
     logViolationToAPI(type);
     if (violationCount >= MAX_VIOLATIONS) {
         autoSubmitExam("Melebihi Batas Toleransi Kecurangan");
     } else {
         document.getElementById('blocker-title').innerHTML = `Peringatan Pelanggaran (${violationCount}/${MAX_VIOLATIONS})`;
-        document.getElementById('blocker-msg').innerHTML = `Anda terdeteksi melakukan tindakan terlarang: <strong>${type}</strong>. Silakan masuk kembali ke mode fullscreen.`;
+        document.getElementById('blocker-msg').innerHTML   = `Anda terdeteksi melakukan tindakan terlarang: <strong>${type}</strong>. Silakan masuk kembali ke mode fullscreen.`;
         document.getElementById('blocker-overlay').classList.remove('hidden');
     }
 }
 
 document.getElementById('btn-resume').addEventListener('click', () => {
-    if (document.documentElement.requestFullscreen) {
+    if (document.documentElement.requestFullscreen && !isMobile) {
         document.documentElement.requestFullscreen().then(() => {
             document.getElementById('blocker-overlay').classList.add('hidden');
-            initialWidth = window.innerWidth;
+            initialWidth  = window.innerWidth;
             initialHeight = window.innerHeight;
         }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
     } else {
@@ -126,20 +167,24 @@ document.getElementById('btn-resume').addEventListener('click', () => {
     }
 });
 
-// --- AUTH ENGINE ---
+// ---------------------------------------------------------------
+// AUTH ENGINE
+// ---------------------------------------------------------------
 document.getElementById('form-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nisn = document.getElementById('input-nisn').value;
     const pin  = document.getElementById('input-pin').value;
     const btn  = document.getElementById('btn-login');
-    btn.disabled = true; btn.innerHTML = 'Memverifikasi...';
+    btn.disabled = true;
+    btn.innerHTML = 'Memverifikasi...';
     try {
         const response = await fetch(`${API_URL}?action=login&nisn=${nisn}&pin=${pin}`);
         const data = await response.json();
         if (data.status === "success") {
             if (data.aksesUjian === 'TUTUP') {
                 alert('Akses ujian Anda saat ini ditutup oleh admin. Silakan hubungi pengawas untuk membuka akses.');
-                btn.disabled = false; btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
+                btn.disabled = false;
+                btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
                 return;
             }
             sessionToken = data.token_sesi;
@@ -148,52 +193,58 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
             localStorage.removeItem('studentAnswers');
             localStorage.removeItem('activeIndex');
             studentAnswers = {};
-            activeIndex = 0;
+            activeIndex    = 0;
             switchPage('instruction');
         } else {
             alert(data.message || "Kredensial Anda salah!");
         }
     } catch (err) { alert("Masalah koneksi ke server."); }
-    finally { btn.disabled = false; btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>'; }
+    finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
+    }
 });
 
 document.getElementById('btn-start-exam').addEventListener('click', () => {
     const startExamWorkflow = () => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
-        initialWidth = window.innerWidth;
+        initialWidth  = window.innerWidth;
         initialHeight = window.innerHeight;
+        // Beri jeda 2 detik agar event resize/blur dari proses
+        // fullscreen tidak terhitung violation
+        examJustStarted = true;
+        setTimeout(() => { examJustStarted = false; }, 2000);
         fetchExamPackage();
     };
-    if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().then(startExamWorkflow).catch(() => startExamWorkflow());
-    } else {
-        alert("Sistem mendeteksi perangkat iOS. Mode Fullscreen otomatis dilewati. Mohon jangan keluar dari aplikasi selama ujian berlangsung!");
+
+    if (isIOS || !document.documentElement.requestFullscreen) {
+        // iOS: tidak support fullscreen, langsung mulai
         startExamWorkflow();
+    } else {
+        // Desktop & Android: request fullscreen dulu
+        document.documentElement.requestFullscreen()
+            .then(startExamWorkflow)
+            .catch(() => startExamWorkflow());
     }
 });
 
-// --- NAVIGASI — pakai touchend di HP agar lebih responsif ---
+// ---------------------------------------------------------------
+// NAVIGASI — hanya click, tidak ada touchend
+// touchend + e.preventDefault() + passive:false = scroll macet
+// ---------------------------------------------------------------
 function goToIndex(idx) {
     if (!examReady || isNavigating) return;
     if (idx < 0 || idx >= examQuestions.length) return;
     isNavigating = true;
-    activeIndex = idx;
+    activeIndex  = idx;
     localStorage.setItem('activeIndex', activeIndex);
     renderQuestion();
-    // Buka kunci navigasi setelah render selesai (1 frame)
     requestAnimationFrame(() => { isNavigating = false; });
 }
 
-function addNavListener(id, fn) {
-    const el = document.getElementById(id);
-    // touchend lebih cepat respons di HP vs click (skip 300ms tap delay)
-    el.addEventListener('touchend', (e) => { e.preventDefault(); fn(); }, { passive: false });
-    el.addEventListener('click', fn);
-}
-
-addNavListener('btn-next',  () => goToIndex(activeIndex + 1));
-addNavListener('btn-prev',  () => goToIndex(activeIndex - 1));
+document.getElementById('btn-next').addEventListener('click', () => goToIndex(activeIndex + 1));
+document.getElementById('btn-prev').addEventListener('click', () => goToIndex(activeIndex - 1));
 
 document.getElementById('btn-doubt').addEventListener('click', () => {
     if (!examReady) return;
@@ -202,12 +253,14 @@ document.getElementById('btn-doubt').addEventListener('click', () => {
     updateGridItem(activeIndex);
 });
 
-// --- CBT CORE SYSTEM ---
+// ---------------------------------------------------------------
+// CBT CORE SYSTEM
+// ---------------------------------------------------------------
 async function fetchExamPackage() {
     const nisn = localStorage.getItem('nisn');
-    examReady = false;
-    examQuestions = [];
-    studentAnswers = {};
+    examReady  = false;
+    examQuestions     = [];
+    studentAnswers    = {};
     doubtfulQuestions = {};
     activeIndex = 0;
     document.getElementById('question-grid').innerHTML = '';
@@ -226,7 +279,6 @@ async function fetchExamPackage() {
 
         examQuestions = data.questions;
 
-        // Restore jawaban dari server
         try {
             const resAns  = await fetch(`${API_URL}?action=getMyAnswers&nisn=${nisn}&token=${sessionToken}`);
             const dataAns = await resAns.json();
@@ -244,9 +296,7 @@ async function fetchExamPackage() {
         const savedIndex = parseInt(localStorage.getItem('activeIndex') || '0');
         activeIndex = (savedIndex < examQuestions.length) ? savedIndex : 0;
 
-        // Build grid nomor soal SEKALI di sini
         buildGrid();
-
         examReady = true;
         renderQuestion();
 
@@ -262,7 +312,6 @@ async function fetchExamPackage() {
     }
 }
 
-// Build grid nomor soal SATU KALI — setelah itu hanya update class
 function buildGrid() {
     const grid = document.getElementById('question-grid');
     grid.innerHTML = '';
@@ -270,14 +319,11 @@ function buildGrid() {
         const box = document.createElement('button');
         box.innerText = idx + 1;
         box.className = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none bg-slate-50 text-slate-600 border-slate-200";
-        // touchend untuk HP
-        box.addEventListener('touchend', (e) => { e.preventDefault(); goToIndex(idx); }, { passive: false });
         box.addEventListener('click', () => goToIndex(idx));
         grid.appendChild(box);
     });
 }
 
-// Update class SATU kotak grid saja (bukan semua)
 function updateGridItem(idx) {
     const grid = document.getElementById('question-grid');
     const box  = grid.querySelectorAll('button')[idx];
@@ -291,22 +337,19 @@ function updateGridItem(idx) {
     box.className = cls;
 }
 
-// Update seluruh grid (dipanggil hanya saat renderQuestion — pindah soal)
 function updateAllGrid(prevIndex) {
-    updateGridItem(prevIndex);  // kotak lama — lepas highlight biru
-    updateGridItem(activeIndex); // kotak baru — pasang highlight biru
+    updateGridItem(prevIndex);
+    updateGridItem(activeIndex);
 }
 
-// renderQuestion — update teks & opsi TANPA destroy DOM
 function renderQuestion() {
     if (!examReady || examQuestions.length === 0) return;
-    const prevIndex = activeIndex; // sudah di-set sebelum dipanggil
+    const prevIndex = activeIndex;
     const q = examQuestions[activeIndex];
 
     document.getElementById('current-question-num').innerText = activeIndex + 1;
     document.getElementById('question-text').textContent = q.pertanyaan;
 
-    // Gambar soal
     const imgWrap = document.getElementById('question-image-wrap');
     const imgEl   = document.getElementById('question-image');
     if (q.gambar_url && q.gambar_url.trim()) {
@@ -327,7 +370,6 @@ function renderQuestion() {
         window.MathJax.typesetPromise([document.getElementById('question-container')]).catch(()=>{});
     }
 
-    // Update 5 tombol opsi yang sudah ada — TIDAK buat elemen baru
     const saved = studentAnswers[q.id_soal];
     const currentDisplayKey = saved ? saved.displayKey : null;
 
@@ -344,7 +386,6 @@ function renderQuestion() {
         }
     });
 
-    // Update grid: hanya 2 kotak yang berubah warna
     updateAllGrid(prevIndex);
 }
 
@@ -355,7 +396,9 @@ function saveAnswerToCloud(idSoal, jawaban, displayKey) {
     localStorage.setItem('studentAnswers', JSON.stringify(savedAnswers));
     localStorage.setItem('activeIndex', activeIndex);
     fetch(API_URL, {
-        method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ action: 'submitAnswer', nisn, token: sessionToken, id_soal: idSoal, jawaban })
     });
 }
@@ -372,7 +415,9 @@ document.getElementById('btn-finish-trigger').addEventListener('click', async ()
     }
 });
 
-// --- CORE UTILS ---
+// ---------------------------------------------------------------
+// CORE UTILS
+// ---------------------------------------------------------------
 function switchPage(pageName) {
     Object.values(pages).forEach(p => p.classList.add('hidden'));
     pages[pageName].classList.remove('hidden');
