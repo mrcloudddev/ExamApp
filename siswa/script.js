@@ -200,12 +200,44 @@ function startQuestionPolling() {
             const res = await fetch(`${API_URL}?action=getQuestion&nisn=${nisn}&token=${sessionToken}`);
             const data = await res.json();
             if (data.status === "success" && data.questions && data.questions.length > 0) {
-                // Update soal tanpa reset jawaban & posisi
-                examQuestions = data.questions.map((newQ, idx) => {
-                    // Pertahankan mapping opsi acak dari soal asli jika ada
-                    const oldQ = examQuestions[idx];
-                    return oldQ ? { ...newQ, mapA: oldQ.mapA, mapB: oldQ.mapB, mapC: oldQ.mapC, mapD: oldQ.mapD, mapE: oldQ.mapE } : newQ;
+                // Buat peta soal lama berdasarkan id_soal agar merge akurat (bukan berdasarkan index)
+                const oldQMap = {};
+                examQuestions.forEach(q => { oldQMap[q.id_soal] = q; });
+
+                // Untuk setiap soal baru dari server:
+                // - Jika id_soal sudah ada di soal lama → pertahankan SEMUA data lama
+                //   (termasuk opsi & mapping acak yang sudah dilihat siswa)
+                //   tapi update hanya teks pertanyaan & gambar (konten substantif)
+                // - Jika id_soal benar-benar baru → gunakan data baru sepenuhnya
+                const updatedQuestions = data.questions.map(newQ => {
+                    const oldQ = oldQMap[newQ.id_soal];
+                    if (oldQ) {
+                        // Pertahankan urutan opsi & mapping yang sudah tampil ke siswa
+                        return {
+                            ...oldQ,
+                            pertanyaan: newQ.pertanyaan,  // update teks soal jika diubah admin
+                            gambar_url: newQ.gambar_url   // update gambar jika diubah admin
+                        };
+                    }
+                    return newQ; // soal baru, pakai data fresh
                 });
+
+                // Pertahankan urutan soal yang sudah diacak sebelumnya (jangan acak ulang)
+                // Soal lama tetap di posisinya; soal baru (jika ada) ditambahkan di akhir
+                const existingIds = examQuestions.map(q => q.id_soal);
+                const newIds = updatedQuestions.map(q => q.id_soal);
+                const updatedMap = {};
+                updatedQuestions.forEach(q => { updatedMap[q.id_soal] = q; });
+
+                // Rebuild: soal lama dengan data terupdate, lalu soal baru yang belum ada
+                const merged = examQuestions
+                    .filter(q => newIds.includes(q.id_soal))  // buang soal yang dihapus admin
+                    .map(q => updatedMap[q.id_soal]);          // update data soal yang ada
+                updatedQuestions.forEach(q => {
+                    if (!existingIds.includes(q.id_soal)) merged.push(q); // tambah soal baru
+                });
+
+                examQuestions = merged;
                 renderCbtDashboard();
                 showSoalUpdateBanner();
             }
