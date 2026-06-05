@@ -69,3 +69,9 @@ button {
 #exam-page {
     -webkit-overflow-scrolling: touch;
 }
+
+
+/* Smooth image load — cegah UI freeze saat ganti soal bergambar */
+#question-image {
+    transition: opacity 0.25s ease;
+}
