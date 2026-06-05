@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbw-ZVWvp-6g7B5KBKTh5DT9zpzXfweTkIZxj8wbakFg1bAUcxdqWF9zbCRRJYETMyhHpg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzdaZ7lavtFtKIgV-lBkanwc-_WiSY3LjUg2zxjETy9gMta6izbzSt2BR4_nqmCbLyFrg/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -170,9 +170,24 @@ async function fetchExamPackage() {
         if (data.status === "success") {
             examQuestions = data.questions;
 
-            // Restore jawaban & posisi soal dari localStorage (backup setelah reload)
-            const savedAnswers = JSON.parse(localStorage.getItem('studentAnswers') || '{}');
-            studentAnswers = savedAnswers;
+            // Restore jawaban dari server agar akurat meski sudah reload/login ulang
+            try {
+                const nisn = localStorage.getItem('nisn');
+                const resAns = await fetch(`${API_URL}?action=getMyAnswers&nisn=${nisn}&token=${sessionToken}`);
+                const dataAns = await resAns.json();
+                if (dataAns.status === "success" && dataAns.answers) {
+                    const restored = {};
+                    examQuestions.forEach(q => {
+                        const serverAns = dataAns.answers[q.id_soal];
+                        if (serverAns) {
+                            const displayKey = ['a','b','c','d','e'].find(k => q[`map${k.toUpperCase()}`] === serverAns);
+                            if (displayKey) restored[q.id_soal] = displayKey;
+                        }
+                    });
+                    studentAnswers = restored;
+                }
+            } catch(e) { /* silent, lanjut tanpa restore */ }
+
             const savedIndex = parseInt(localStorage.getItem('activeIndex') || '0');
             activeIndex = (savedIndex < examQuestions.length) ? savedIndex : 0;
 
