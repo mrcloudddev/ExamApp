@@ -2,14 +2,15 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzdaZ7lavtFtKIgV-lBkanw
 
 let sessionToken = "";
 let examQuestions = [];
-let studentAnswers = {};   // { id_soal: { displayKey, originalKey } }
+let studentAnswers = {};
 let doubtfulQuestions = {};
 let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
 let isFinishingExam = false;
-let examReady = false;     // <-- FLAG: soal sudah siap, baru boleh navigasi
+let examReady = false;
+let isNavigating = false; // debounce navigasi — cegah double-tap di HP
 
 let initialWidth = window.innerWidth;
 let initialHeight = window.innerHeight;
@@ -20,6 +21,39 @@ const pages = {
     exam: document.getElementById('exam-page'),
     finish: document.getElementById('finish-page')
 };
+
+// ---------------------------------------------------------------
+// PRE-BUILD opsi A-E sekali saja saat halaman load
+// Saat pindah soal hanya teks & status selected yang diupdate
+// TIDAK ada createElement / innerHTML = '' di setiap navigasi
+// ---------------------------------------------------------------
+const OPT_KEYS = ['a','b','c','d','e'];
+const optContainer = document.getElementById('options-container');
+
+// Buat 5 tombol opsi permanen
+const optBtns = OPT_KEYS.map(key => {
+    const btn = document.createElement('button');
+    btn.className = "option-card w-full text-left bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
+    btn.dataset.key = key;
+    btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="opt-text text-slate-700"></span>`;
+    btn.addEventListener('click', () => onOptionClick(key));
+    optContainer.appendChild(btn);
+    return btn;
+});
+
+function onOptionClick(key) {
+    if (!examReady) return;
+    const q = examQuestions[activeIndex];
+    if (!q[`opsi_${key}`]) return; // tombol hidden, abaikan
+
+    optBtns.forEach(b => b.classList.remove('selected'));
+    optBtns[OPT_KEYS.indexOf(key)].classList.add('selected');
+
+    const originalKey = q[`map${key.toUpperCase()}`] || key;
+    studentAnswers[q.id_soal] = { displayKey: key, originalKey };
+    saveAnswerToCloud(q.id_soal, originalKey, key);
+    updateGridItem(activeIndex); // update 1 kotak grid saja
+}
 
 // --- SECURITIES GUARD ENGINE ---
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -47,9 +81,8 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', () => {
     if (isFinishingExam) return;
     if (sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
-        let widthThreshold = initialWidth * 0.15;
-        let heightThreshold = initialHeight * 0.15;
-        if (Math.abs(window.innerWidth - initialWidth) > widthThreshold || Math.abs(window.innerHeight - initialHeight) > heightThreshold) {
+        if (Math.abs(window.innerWidth - initialWidth) > initialWidth * 0.15 ||
+            Math.abs(window.innerHeight - initialHeight) > initialHeight * 0.15) {
             triggerViolation("Terdeteksi Split Screen (Layar Belah) / Pop-up Melayang");
             initialWidth = window.innerWidth;
             initialHeight = window.innerHeight;
@@ -59,7 +92,10 @@ window.addEventListener('resize', () => {
 
 document.addEventListener('fullscreenchange', () => {
     if (isFinishingExam) return;
-    if (!document.fullscreenElement && sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
+    if (!document.fullscreenElement && sessionToken &&
+        pages.login.classList.contains('hidden') &&
+        pages.finish.classList.contains('hidden') &&
+        pages.instruction.classList.contains('hidden')) {
         triggerViolation("Keluar dari Mode Fullscreen");
     }
 });
@@ -137,42 +173,46 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
     }
 });
 
-// --- CBT NAVIGATORS ---
-// Semua tombol navigasi dicek via examReady — tidak bisa ditekan saat soal belum siap
-document.getElementById('btn-next').addEventListener('click', () => {
-    if (!examReady) return;
-    if (activeIndex < examQuestions.length - 1) {
-        activeIndex++;
-        localStorage.setItem('activeIndex', activeIndex);
-        renderCbtDashboard();
-    }
-});
-document.getElementById('btn-prev').addEventListener('click', () => {
-    if (!examReady) return;
-    if (activeIndex > 0) {
-        activeIndex--;
-        localStorage.setItem('activeIndex', activeIndex);
-        renderCbtDashboard();
-    }
-});
+// --- NAVIGASI — pakai touchend di HP agar lebih responsif ---
+function goToIndex(idx) {
+    if (!examReady || isNavigating) return;
+    if (idx < 0 || idx >= examQuestions.length) return;
+    isNavigating = true;
+    activeIndex = idx;
+    localStorage.setItem('activeIndex', activeIndex);
+    renderQuestion();
+    // Buka kunci navigasi setelah render selesai (1 frame)
+    requestAnimationFrame(() => { isNavigating = false; });
+}
+
+function addNavListener(id, fn) {
+    const el = document.getElementById(id);
+    // touchend lebih cepat respons di HP vs click (skip 300ms tap delay)
+    el.addEventListener('touchend', (e) => { e.preventDefault(); fn(); }, { passive: false });
+    el.addEventListener('click', fn);
+}
+
+addNavListener('btn-next',  () => goToIndex(activeIndex + 1));
+addNavListener('btn-prev',  () => goToIndex(activeIndex - 1));
+
 document.getElementById('btn-doubt').addEventListener('click', () => {
     if (!examReady) return;
-    doubtfulQuestions[examQuestions[activeIndex].id_soal] = !doubtfulQuestions[examQuestions[activeIndex].id_soal];
-    renderGridIndicators();
+    const id = examQuestions[activeIndex].id_soal;
+    doubtfulQuestions[id] = !doubtfulQuestions[id];
+    updateGridItem(activeIndex);
 });
 
 // --- CBT CORE SYSTEM ---
 async function fetchExamPackage() {
     const nisn = localStorage.getItem('nisn');
-
-    // Kunci navigasi selama loading
     examReady = false;
     examQuestions = [];
     studentAnswers = {};
     doubtfulQuestions = {};
     activeIndex = 0;
     document.getElementById('question-grid').innerHTML = '';
-    document.getElementById('options-container').innerHTML = '<p class="text-slate-400 text-sm text-center py-8">Memuat soal...</p>';
+    document.getElementById('question-text').textContent = 'Memuat soal...';
+    optBtns.forEach(b => { b.classList.add('hidden'); b.classList.remove('selected'); });
 
     try {
         const res  = await fetch(`${API_URL}?action=getQuestion&nisn=${nisn}&token=${sessionToken}`);
@@ -194,10 +234,8 @@ async function fetchExamPackage() {
                 examQuestions.forEach(q => {
                     const serverAns = dataAns.answers[q.id_soal];
                     if (serverAns) {
-                        const displayKey = ['a','b','c','d','e'].find(k => q[`map${k.toUpperCase()}`] === serverAns);
-                        if (displayKey) {
-                            studentAnswers[q.id_soal] = { displayKey, originalKey: serverAns };
-                        }
+                        const displayKey = OPT_KEYS.find(k => q[`map${k.toUpperCase()}`] === serverAns);
+                        if (displayKey) studentAnswers[q.id_soal] = { displayKey, originalKey: serverAns };
                     }
                 });
             }
@@ -206,37 +244,72 @@ async function fetchExamPackage() {
         const savedIndex = parseInt(localStorage.getItem('activeIndex') || '0');
         activeIndex = (savedIndex < examQuestions.length) ? savedIndex : 0;
 
-        // Soal siap — buka kunci navigasi
-        examReady = true;
+        // Build grid nomor soal SEKALI di sini
+        buildGrid();
 
-        renderCbtDashboard();
+        examReady = true;
+        renderQuestion();
 
         if (data.sisa_waktu && data.sisa_waktu <= 0) {
             alert("Waktu ujian untuk kelas Anda telah habis. Silakan hubungi pengawas.");
             autoSubmitExam("Waktu Ujian Telah Habis Saat Login");
             return;
         }
-        const sisaWaktu = (data.sisa_waktu && data.sisa_waktu > 0) ? data.sisa_waktu : 60 * 60;
-        startTimer(sisaWaktu);
+        startTimer((data.sisa_waktu && data.sisa_waktu > 0) ? data.sisa_waktu : 3600);
 
     } catch (err) {
         alert("Gagal mengambil paket soal. Periksa koneksi internet Anda.");
     }
 }
 
-function renderCbtDashboard() {
+// Build grid nomor soal SATU KALI — setelah itu hanya update class
+function buildGrid() {
+    const grid = document.getElementById('question-grid');
+    grid.innerHTML = '';
+    examQuestions.forEach((q, idx) => {
+        const box = document.createElement('button');
+        box.innerText = idx + 1;
+        box.className = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none bg-slate-50 text-slate-600 border-slate-200";
+        // touchend untuk HP
+        box.addEventListener('touchend', (e) => { e.preventDefault(); goToIndex(idx); }, { passive: false });
+        box.addEventListener('click', () => goToIndex(idx));
+        grid.appendChild(box);
+    });
+}
+
+// Update class SATU kotak grid saja (bukan semua)
+function updateGridItem(idx) {
+    const grid = document.getElementById('question-grid');
+    const box  = grid.querySelectorAll('button')[idx];
+    if (!box) return;
+    const q = examQuestions[idx];
+    let cls = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
+    if (idx === activeIndex)               cls += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100 border-indigo-600";
+    else if (doubtfulQuestions[q.id_soal]) cls += "bg-amber-500 text-white border-amber-500";
+    else if (studentAnswers[q.id_soal])    cls += "bg-emerald-600 text-white border-emerald-600";
+    else                                   cls += "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200";
+    box.className = cls;
+}
+
+// Update seluruh grid (dipanggil hanya saat renderQuestion — pindah soal)
+function updateAllGrid(prevIndex) {
+    updateGridItem(prevIndex);  // kotak lama — lepas highlight biru
+    updateGridItem(activeIndex); // kotak baru — pasang highlight biru
+}
+
+// renderQuestion — update teks & opsi TANPA destroy DOM
+function renderQuestion() {
     if (!examReady || examQuestions.length === 0) return;
+    const prevIndex = activeIndex; // sudah di-set sebelum dipanggil
     const q = examQuestions[activeIndex];
 
     document.getElementById('current-question-num').innerText = activeIndex + 1;
-
-    // Render teks soal
     document.getElementById('question-text').textContent = q.pertanyaan;
 
-    // Render gambar soal
+    // Gambar soal
     const imgWrap = document.getElementById('question-image-wrap');
     const imgEl   = document.getElementById('question-image');
-    if (q.gambar_url && q.gambar_url.trim() !== '') {
+    if (q.gambar_url && q.gambar_url.trim()) {
         let imgUrl = q.gambar_url.trim();
         const driveMatch = imgUrl.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]{25,})/);
         if (driveMatch) imgUrl = `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w800`;
@@ -254,69 +327,25 @@ function renderCbtDashboard() {
         window.MathJax.typesetPromise([document.getElementById('question-container')]).catch(()=>{});
     }
 
-    // Render opsi jawaban
-    const optContainer = document.getElementById('options-container');
-    optContainer.innerHTML = '';
-
+    // Update 5 tombol opsi yang sudah ada — TIDAK buat elemen baru
     const saved = studentAnswers[q.id_soal];
     const currentDisplayKey = saved ? saved.displayKey : null;
 
-    ['a','b','c','d','e'].forEach(key => {
-        if (!q[`opsi_${key}`]) return;
-
-        const btn = document.createElement('button');
-        btn.className = "option-card w-full text-left bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
-        if (currentDisplayKey === key) btn.classList.add('selected');
-
-        btn.onclick = () => {
-            if (!examReady) return;
-            // Hapus selected dari semua opsi di container ini
-            optContainer.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
-            btn.classList.add('selected');
-
-            const originalKey = q[`map${key.toUpperCase()}`] || key;
-            studentAnswers[q.id_soal] = { displayKey: key, originalKey };
-            saveAnswerToCloud(q.id_soal, originalKey, key);
-            renderGridIndicators();
-        };
-
-        btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="text-slate-700">${q[`opsi_${key}`]}</span>`;
-        optContainer.appendChild(btn);
+    OPT_KEYS.forEach((key, i) => {
+        const btn  = optBtns[i];
+        const text = q[`opsi_${key}`];
+        if (text) {
+            btn.querySelector('.opt-text').textContent = text;
+            btn.classList.remove('hidden', 'selected');
+            if (currentDisplayKey === key) btn.classList.add('selected');
+        } else {
+            btn.classList.add('hidden');
+            btn.classList.remove('selected');
+        }
     });
 
-    renderGridIndicators();
-}
-
-function renderGridIndicators() {
-    if (!examReady) return;
-    const grid = document.getElementById('question-grid');
-
-    // Rebuild hanya jika jumlah tombol tidak sesuai
-    if (grid.querySelectorAll('button').length !== examQuestions.length) {
-        grid.innerHTML = '';
-        examQuestions.forEach((q, idx) => {
-            const box = document.createElement('button');
-            box.innerText = idx + 1;
-            box.onclick = () => {
-                if (!examReady) return;
-                activeIndex = idx;
-                localStorage.setItem('activeIndex', activeIndex);
-                renderCbtDashboard();
-            };
-            grid.appendChild(box);
-        });
-    }
-
-    // Update class saja — tidak rebuild DOM
-    grid.querySelectorAll('button').forEach((box, idx) => {
-        const q   = examQuestions[idx];
-        let cls = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
-        if (idx === activeIndex)               cls += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100 border-indigo-600";
-        else if (doubtfulQuestions[q.id_soal]) cls += "bg-amber-500 text-white border-amber-500";
-        else if (studentAnswers[q.id_soal])    cls += "bg-emerald-600 text-white border-emerald-600";
-        else                                   cls += "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200";
-        box.className = cls;
-    });
+    // Update grid: hanya 2 kotak yang berubah warna
+    updateAllGrid(prevIndex);
 }
 
 function saveAnswerToCloud(idSoal, jawaban, displayKey) {
@@ -351,16 +380,14 @@ function switchPage(pageName) {
 
 function startTimer(durationSeconds) {
     let timeLeft = durationSeconds;
-    const btnFinish   = document.getElementById('btn-finish-trigger');
+    const btnFinish    = document.getElementById('btn-finish-trigger');
     const noticeFinish = document.getElementById('finish-notice');
-
     timerInterval = setInterval(() => {
-        let hrs  = Math.floor(timeLeft / 3600);
-        let mins = Math.floor((timeLeft % 3600) / 60);
-        let secs = timeLeft % 60;
+        const hrs  = Math.floor(timeLeft / 3600);
+        const mins = Math.floor((timeLeft % 3600) / 60);
+        const secs = timeLeft % 60;
         document.getElementById('timer-countdown').innerText =
             `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-
         if (timeLeft <= 1200) {
             btnFinish.removeAttribute('disabled');
             btnFinish.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg";
@@ -372,7 +399,6 @@ function startTimer(durationSeconds) {
             btnFinish.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Selesai & Kirim Ujian`;
             noticeFinish.classList.remove('hidden');
         }
-
         if (--timeLeft < 0) {
             clearInterval(timerInterval);
             isFinishingExam = true;
@@ -392,7 +418,6 @@ function autoSubmitExam(reason) {
     isFinishingExam = true;
     examReady = false;
     if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-
     if (reason === "Melebihi Batas Toleransi Kecurangan") {
         const nisn = localStorage.getItem('nisn');
         navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetStatusSiswa', nisn }));
@@ -407,7 +432,6 @@ function autoSubmitExam(reason) {
         document.getElementById('input-pin').value  = '';
         return;
     }
-
     alert(`Ujian selesai: ${reason}`);
     finishExam();
 }
