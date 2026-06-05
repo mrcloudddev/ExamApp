@@ -2,15 +2,21 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzdaZ7lavtFtKIgV-lBkanw
 
 let sessionToken = "";
 let examQuestions = [];
+
+// FIX #1: studentAnswers menyimpan { id_soal: { displayKey, originalKey } }
+// agar mapping display key dan kunci asli TIDAK pernah kacau walau opsi diacak ulang
 let studentAnswers = {};
+
 let doubtfulQuestions = {};
 let activeIndex = 0;
 let violationCount = 0;
 const MAX_VIOLATIONS = 3;
 let timerInterval;
-let isFinishingExam = false; 
+let isFinishingExam = false;
 
-// Menyimpan ukuran layar awal untuk deteksi manipulasi Split Screen (Layar Belah HP)
+// FIX #2: Debounce grid render agar tidak lag saat grid besar
+let gridRenderTimeout = null;
+
 let initialWidth = window.innerWidth;
 let initialHeight = window.innerHeight;
 
@@ -21,7 +27,7 @@ const pages = {
     finish: document.getElementById('finish-page')
 };
 
-// --- SECURITIES GUARD ENGINE (ANTI-NYONTEK HP & PC BERLAPIS) ---
+// --- SECURITIES GUARD ENGINE ---
 document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('keydown', e => {
     if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'v')) {
@@ -47,13 +53,10 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', () => {
     if (isFinishingExam) return;
     if (sessionToken && pages.login.classList.contains('hidden') && pages.finish.classList.contains('hidden') && pages.instruction.classList.contains('hidden')) {
-        
         let widthThreshold = initialWidth * 0.15;
         let heightThreshold = initialHeight * 0.15;
-        
         if (Math.abs(window.innerWidth - initialWidth) > widthThreshold || Math.abs(window.innerHeight - initialHeight) > heightThreshold) {
             triggerViolation("Terdeteksi Split Screen (Layar Belah) / Pop-up Melayang");
-            
             initialWidth = window.innerWidth;
             initialHeight = window.innerHeight;
         }
@@ -69,11 +72,7 @@ document.addEventListener('fullscreenchange', () => {
 
 function triggerViolation(type) {
     if (isFinishingExam) return;
-    
-    // FIX KHUSUS IPHONE: Jika tipe pelanggaran adalah fullscreen tetapi device tidak mendukung API Fullscreen, abaikan.
-    if (type === "Keluar dari Mode Fullscreen" && !document.documentElement.requestFullscreen) {
-        return; 
-    }
+    if (type === "Keluar dari Mode Fullscreen" && !document.documentElement.requestFullscreen) return;
 
     violationCount++;
     logViolationToAPI(type);
@@ -87,7 +86,6 @@ function triggerViolation(type) {
 }
 
 document.getElementById('btn-resume').addEventListener('click', () => {
-    // Validasi pengecekan dukungan fullscreen saat tombol resume ditekan
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().then(() => {
             document.getElementById('blocker-overlay').classList.add('hidden');
@@ -95,7 +93,6 @@ document.getElementById('btn-resume').addEventListener('click', () => {
             initialHeight = window.innerHeight;
         }).catch(() => alert("Wajib masuk mode fullscreen untuk melanjutkan!"));
     } else {
-        // Jika di iPhone, langsung tutup blocker overlay karena tidak mendukung fullscreen
         document.getElementById('blocker-overlay').classList.add('hidden');
     }
 });
@@ -112,7 +109,6 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
         const response = await fetch(`${API_URL}?action=login&nisn=${nisn}&pin=${pin}`);
         const data = await response.json();
         if (data.status === "success") {
-            // Cek apakah akses ujian siswa ini dibuka atau ditutup admin
             if (data.aksesUjian === 'TUTUP') {
                 alert('Akses ujian Anda saat ini ditutup oleh admin. Silakan hubungi pengawas untuk membuka akses.');
                 btn.disabled = false; btn.innerHTML = 'Masuk Sistem <i class="fa-solid fa-arrow-right ml-2"></i>';
@@ -121,7 +117,7 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
             sessionToken = data.token_sesi;
             localStorage.setItem('nisn', nisn);
             localStorage.setItem('namaSiswa', data.nama || nisn);
-            // Bersihkan jawaban & posisi dari sesi sebelumnya
+            // Bersihkan sesi lama
             localStorage.removeItem('studentAnswers');
             localStorage.removeItem('activeIndex');
             studentAnswers = {};
@@ -135,27 +131,19 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('btn-start-exam').addEventListener('click', () => {
-    // Alur penyiapan dashboard dan fetch soal dimasukkan ke dalam fungsi terisolasi
     const startExamWorkflow = () => {
         switchPage('exam');
         document.getElementById('exam-timer').classList.replace('hidden', 'flex');
-        // Timer tidak dijalankan di sini — akan dijalankan setelah fetchExamPackage
-        // mendapatkan sisa_waktu dari server agar siswa telat mendapat waktu yang dipotong
         initialWidth = window.innerWidth;
         initialHeight = window.innerHeight;
         fetchExamPackage();
     };
 
-    // FIX KHUSUS IPHONE: Cek ketersediaan API requestFullscreen sebelum dieksekusi
     if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen()
             .then(startExamWorkflow)
-            .catch(() => {
-                // Jika request fullscreen gagal/ditolak oleh user di Android/PC, sistem tetap mengizinkan ujian
-                startExamWorkflow();
-            });
+            .catch(() => startExamWorkflow());
     } else {
-        // Eksekusi langsung jika diakses dari iOS / Safari Mobile
         alert("Sistem mendeteksi perangkat iOS. Mode Fullscreen otomatis dilewati. Mohon jangan keluar dari aplikasi selama ujian berlangsung!");
         startExamWorkflow();
     }
@@ -170,18 +158,27 @@ async function fetchExamPackage() {
         if (data.status === "success") {
             examQuestions = data.questions;
 
-            // Restore jawaban dari server agar akurat meski sudah reload/login ulang
+            // ================================================================
+            // FIX #1 — Restore jawaban dari server dengan menyimpan KEDUA kunci
+            // (displayKey = huruf yang ditampilkan, originalKey = kunci asli server)
+            // Ini mencegah jawaban tampak berubah walau urutan opsi diacak ulang
+            // ================================================================
             try {
-                const nisn = localStorage.getItem('nisn');
                 const resAns = await fetch(`${API_URL}?action=getMyAnswers&nisn=${nisn}&token=${sessionToken}`);
                 const dataAns = await resAns.json();
                 if (dataAns.status === "success" && dataAns.answers) {
                     const restored = {};
                     examQuestions.forEach(q => {
-                        const serverAns = dataAns.answers[q.id_soal];
+                        const serverAns = dataAns.answers[q.id_soal]; // kunci asli (a/b/c/d/e versi server)
                         if (serverAns) {
+                            // Cari displayKey yang mapping-nya cocok dengan jawaban server
                             const displayKey = ['a','b','c','d','e'].find(k => q[`map${k.toUpperCase()}`] === serverAns);
-                            if (displayKey) restored[q.id_soal] = displayKey;
+                            if (displayKey) {
+                                restored[q.id_soal] = {
+                                    displayKey: displayKey,   // huruf tampilan saat ini (mungkin berbeda tiap load)
+                                    originalKey: serverAns    // kunci asli — STABIL tidak berubah
+                                };
+                            }
                         }
                     });
                     studentAnswers = restored;
@@ -193,14 +190,11 @@ async function fetchExamPackage() {
 
             renderCbtDashboard();
 
-            // Gunakan sisa_waktu dari server jika tersedia (dalam detik)
-            // Ini memastikan siswa telat mendapat waktu yang sudah dipotong
             const sisaWaktu = (data.sisa_waktu && data.sisa_waktu > 0)
                 ? data.sisa_waktu
-                : 60 * 60; // fallback 60 menit jika server belum support field ini
+                : 60 * 60;
 
             if (data.sisa_waktu && data.sisa_waktu <= 0) {
-                // Waktu ujian sudah habis sebelum siswa sempat mulai
                 alert("Waktu ujian untuk kelas Anda telah habis. Silakan hubungi pengawas.");
                 autoSubmitExam("Waktu Ujian Telah Habis Saat Login");
                 return;
@@ -217,32 +211,22 @@ async function fetchExamPackage() {
 function renderCbtDashboard() {
     if (examQuestions.length === 0) return;
     const currentQuestion = examQuestions[activeIndex];
-    
+
     document.getElementById('current-question-num').innerText = activeIndex + 1;
 
-    // Render teks soal (support teks biasa)
     const qTextEl = document.getElementById('question-text');
     qTextEl.textContent = currentQuestion.pertanyaan;
 
-    // Render gambar soal jika ada (field gambar_url dari server)
     const imgWrap = document.getElementById('question-image-wrap');
     const imgEl = document.getElementById('question-image');
     if (currentQuestion.gambar_url && currentQuestion.gambar_url.trim() !== '') {
         let imgUrl = currentQuestion.gambar_url.trim();
-
-        // Konversi berbagai format Google Drive ke format thumbnail yang bisa di-embed
-        // Format 1: https://drive.google.com/file/d/FILE_ID/view
-        // Format 2: https://drive.google.com/open?id=FILE_ID
-        // Format 3: https://drive.google.com/uc?id=FILE_ID  (sudah benar, tapi sering diblokir)
         const driveMatch = imgUrl.match(/(?:\/d\/|id=)([a-zA-Z0-9_-]{25,})/);
         if (driveMatch) {
-            // Gunakan thumbnail API Drive yang tidak butuh auth
             imgUrl = `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w800`;
         }
-
         imgEl.src = imgUrl;
         imgEl.onerror = function() {
-            // Jika gambar gagal load, sembunyikan dan tampilkan pesan
             imgWrap.innerHTML = '<p class="text-xs text-rose-400 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Gambar tidak dapat dimuat. Pastikan link gambar dapat diakses publik.</p>';
         };
         imgWrap.classList.remove('hidden');
@@ -251,7 +235,6 @@ function renderCbtDashboard() {
         imgEl.src = '';
     }
 
-    // Trigger MathJax render ulang untuk soal matematika
     if (window.MathJax && window.MathJax.typesetPromise) {
         window.MathJax.typesetPromise([document.getElementById('question-container')]).catch(()=>{});
     }
@@ -259,65 +242,111 @@ function renderCbtDashboard() {
     const optContainer = document.getElementById('options-container');
     optContainer.innerHTML = '';
 
-    // Loop pembuatan opsi pilihan jawaban yang adaptif terhadap arsitektur acakan Apps Script
+    // Ambil displayKey yang sudah disimpan untuk soal ini
+    const savedAnswer = studentAnswers[currentQuestion.id_soal];
+    const currentDisplayKey = savedAnswer ? savedAnswer.displayKey : null;
+
     ['a', 'b', 'c', 'd', 'e'].forEach(key => {
         if (currentQuestion[`opsi_${key}`]) {
             const btn = document.createElement('button');
             btn.className = "option-card w-full text-left bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 transition-all outline-none text-sm font-medium group";
-            if (studentAnswers[currentQuestion.id_soal] === key) btn.classList.add('selected');
+
+            // FIX #1 — Tandai tombol yang sudah dipilih berdasarkan displayKey saat ini
+            if (currentDisplayKey === key) btn.classList.add('selected');
 
             btn.onclick = () => {
+                // FIX #2 — Matikan semua pointer event sementara (anti-double-click lag)
+                optContainer.style.pointerEvents = 'none';
+
                 document.querySelectorAll('.option-card').forEach(el => el.classList.remove('selected'));
                 btn.classList.add('selected');
-                // Simpan key tampilan (a/b/c/d/e) untuk keperluan highlight UI
-                studentAnswers[currentQuestion.id_soal] = key;
-                
-                // Konversi ke kunci asli untuk dikirim ke server & disimpan localStorage
-                let properKey = currentQuestion[`map${key.toUpperCase()}`] || key;
-                // Simpan key tampilan ke localStorage (bukan properKey) agar restore highlight akurat
-                saveAnswerToCloud(currentQuestion.id_soal, properKey, key);
-                renderGridIndicators();
+
+                const originalKey = currentQuestion[`map${key.toUpperCase()}`] || key;
+
+                // Simpan keduanya: displayKey untuk UI, originalKey untuk server
+                studentAnswers[currentQuestion.id_soal] = {
+                    displayKey: key,
+                    originalKey: originalKey
+                };
+
+                saveAnswerToCloud(currentQuestion.id_soal, originalKey, key);
+                scheduleGridRender();
+
+                // Re-enable pointer events setelah singkat (debounce anti-stag)
+                setTimeout(() => { optContainer.style.pointerEvents = ''; }, 300);
             };
+
             btn.innerHTML = `<span class="w-8 h-8 bg-slate-100 group-hover:bg-indigo-50 border border-slate-200 text-slate-600 font-bold text-xs rounded-xl flex items-center justify-center uppercase">${key}</span><span class="text-slate-700">${currentQuestion[`opsi_${key}`]}</span>`;
             optContainer.appendChild(btn);
         }
     });
 
-    renderGridIndicators();
+    scheduleGridRender();
 }
 
 // --- CBT NAVIGATORS ---
-document.getElementById('btn-next').addEventListener('click', () => { if (activeIndex < examQuestions.length - 1) { activeIndex++; renderCbtDashboard(); } });
-document.getElementById('btn-prev').addEventListener('click', () => { if (activeIndex > 0) { activeIndex--; renderCbtDashboard(); } });
-document.getElementById('btn-doubt').addEventListener('click', () => { doubtfulQuestions[examQuestions[activeIndex].id_soal] = !doubtfulQuestions[examQuestions[activeIndex].id_soal]; renderGridIndicators(); });
+document.getElementById('btn-next').addEventListener('click', () => {
+    if (activeIndex < examQuestions.length - 1) { activeIndex++; renderCbtDashboard(); }
+});
+document.getElementById('btn-prev').addEventListener('click', () => {
+    if (activeIndex > 0) { activeIndex--; renderCbtDashboard(); }
+});
+document.getElementById('btn-doubt').addEventListener('click', () => {
+    doubtfulQuestions[examQuestions[activeIndex].id_soal] = !doubtfulQuestions[examQuestions[activeIndex].id_soal];
+    scheduleGridRender();
+});
+
+// FIX #2 — Debounce renderGridIndicators agar tidak dipanggil berkali-kali dalam satu frame
+// Ini cegah stag/freeze saat soal banyak (misal 100 soal = 100 DOM node dibuat ulang)
+function scheduleGridRender() {
+    if (gridRenderTimeout) clearTimeout(gridRenderTimeout);
+    gridRenderTimeout = setTimeout(renderGridIndicators, 50);
+}
 
 function renderGridIndicators() {
-    const grid = document.getElementById('question-grid'); grid.innerHTML = '';
-    examQuestions.forEach((q, idx) => {
-        const box = document.createElement('button');
-        box.className = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
-        box.innerText = idx + 1;
+    gridRenderTimeout = null;
+    const grid = document.getElementById('question-grid');
 
-        if (idx === activeIndex) box.className += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100 border-indigo-600";
-        else if (doubtfulQuestions[q.id_soal]) box.className += "bg-amber-500 text-white border-amber-500";
-        else if (studentAnswers[q.id_soal]) box.className += "bg-emerald-600 text-white border-emerald-600";
-        else box.className += "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200";
+    // FIX #2 — Update class tombol yang sudah ada (JANGAN innerHTML = '' setiap kali)
+    // Ini mencegah layout reflow besar yang menyebabkan stag
+    const existingBoxes = grid.querySelectorAll('button');
+    const needRebuild = existingBoxes.length !== examQuestions.length;
 
-        box.onclick = () => { activeIndex = idx; renderCbtDashboard(); };
-        grid.appendChild(box);
+    if (needRebuild) {
+        // Build grid dari awal hanya jika jumlah soal berubah (sekali saja)
+        grid.innerHTML = '';
+        examQuestions.forEach((q, idx) => {
+            const box = document.createElement('button');
+            box.dataset.idx = idx;
+            box.className = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
+            box.innerText = idx + 1;
+            box.onclick = () => { activeIndex = idx; renderCbtDashboard(); };
+            grid.appendChild(box);
+        });
+    }
+
+    // Update hanya class tiap tombol — jauh lebih ringan dari rebuild penuh
+    grid.querySelectorAll('button').forEach((box, idx) => {
+        const q = examQuestions[idx];
+        let cls = "aspect-square w-full min-w-[36px] max-w-[46px] rounded-xl font-mono text-xs font-bold flex items-center justify-center transition-all border outline-none select-none ";
+        if (idx === activeIndex)              cls += "bg-indigo-600 text-white shadow-md ring-4 ring-indigo-100 border-indigo-600";
+        else if (doubtfulQuestions[q.id_soal]) cls += "bg-amber-500 text-white border-amber-500";
+        else if (studentAnswers[q.id_soal])   cls += "bg-emerald-600 text-white border-emerald-600";
+        else                                   cls += "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-200";
+        box.className = cls;
     });
 }
 
 function saveAnswerToCloud(idSoal, jawaban, displayKey) {
     const nisn = localStorage.getItem('nisn');
 
-    // Simpan key TAMPILAN (a/b/c/d/e) ke localStorage agar highlight UI bisa di-restore
-    // jawaban = kunci asli untuk server, displayKey = huruf yang tampil ke siswa
+    // Simpan di localStorage: format { displayKey, originalKey } agar konsisten
     const savedAnswers = JSON.parse(localStorage.getItem('studentAnswers') || '{}');
-    savedAnswers[idSoal] = displayKey || jawaban;
+    savedAnswers[idSoal] = { displayKey: displayKey || jawaban, originalKey: jawaban };
     localStorage.setItem('studentAnswers', JSON.stringify(savedAnswers));
     localStorage.setItem('activeIndex', activeIndex);
 
+    // Kirim ke server secara async, no-cors (fire and forget)
     fetch(API_URL, {
         method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ action: 'submitAnswer', nisn: nisn, token: sessionToken, id_soal: idSoal, jawaban: jawaban })
@@ -325,17 +354,17 @@ function saveAnswerToCloud(idSoal, jawaban, displayKey) {
 }
 
 document.getElementById('btn-finish-trigger').addEventListener('click', async () => {
-  if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
-      isFinishingExam = true;
-      const btn = document.getElementById('btn-finish-trigger');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Mengirim jawaban...';
-      const nisn = localStorage.getItem('nisn');
-      try {
-          await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
-      } catch(e) { /* tetap lanjut ke halaman selesai */ }
-      finishExam();
-  }
+    if(confirm("Apakah Anda yakin ingin mengakhiri sesi ujian dan mengirim berkas jawaban?")) {
+        isFinishingExam = true;
+        const btn = document.getElementById('btn-finish-trigger');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Mengirim jawaban...';
+        const nisn = localStorage.getItem('nisn');
+        try {
+            await fetch(`${API_URL}?action=forceEndExam&nisn=${nisn}&token=${sessionToken}`);
+        } catch(e) { /* tetap lanjut */ }
+        finishExam();
+    }
 });
 
 // --- CORE UTILS ---
@@ -345,15 +374,14 @@ function startTimer(durationSeconds) {
     let timeLeft = durationSeconds;
     const btnFinish = document.getElementById('btn-finish-trigger');
     const noticeFinish = document.getElementById('finish-notice');
-    
+
     timerInterval = setInterval(() => {
-        let hrs = Math.floor(timeLeft / 3600); 
-        let mins = Math.floor((timeLeft % 3600) / 60); 
+        let hrs = Math.floor(timeLeft / 3600);
+        let mins = Math.floor((timeLeft % 3600) / 60);
         let secs = timeLeft % 60;
-        
+
         document.getElementById('timer-countdown').innerText = `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-        
-        // Aturan Kunci Sesi: Tombol diaktifkan penuh ketika sisa waktu <= 20 menit (1200 detik)
+
         if (timeLeft <= 1200) {
             btnFinish.removeAttribute('disabled');
             btnFinish.className = "w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg";
@@ -365,19 +393,19 @@ function startTimer(durationSeconds) {
             btnFinish.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Selesai & Kirim Ujian`;
             noticeFinish.classList.remove('hidden');
         }
-        
-        if (--timeLeft < 0) { 
-            clearInterval(timerInterval); 
+
+        if (--timeLeft < 0) {
+            clearInterval(timerInterval);
             isFinishingExam = true;
-            autoSubmitExam("Waktu Sesi Habis"); 
+            autoSubmitExam("Waktu Sesi Habis");
         }
     }, 1000);
 }
 
-async function logViolationToAPI(type) { 
+async function logViolationToAPI(type) {
     if (isFinishingExam) return;
-    const nisn = localStorage.getItem('nisn'); 
-    navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type })); 
+    const nisn = localStorage.getItem('nisn');
+    navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'logViolation', nisn: nisn, jenis: type }));
 }
 
 function autoSubmitExam(reason) {
@@ -404,22 +432,16 @@ function autoSubmitExam(reason) {
     finishExam();
 }
 
-function finishExam() { 
+function finishExam() {
     clearInterval(timerInterval);
     isFinishingExam = true;
-
-    // Bersihkan backup — nilai sudah aman di spreadsheet
     localStorage.removeItem('studentAnswers');
     localStorage.removeItem('activeIndex');
-    
     if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
     }
-    
-    document.getElementById('exam-timer').classList.add('hidden'); 
-    
+    document.getElementById('exam-timer').classList.add('hidden');
     const namaTerdaftar = localStorage.getItem('namaSiswa');
-    document.getElementById('res-nama').innerText = namaTerdaftar; 
-    
-    switchPage('finish'); 
+    document.getElementById('res-nama').innerText = namaTerdaftar;
+    switchPage('finish');
 }
