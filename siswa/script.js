@@ -236,11 +236,11 @@ document.getElementById('btn-start-exam').addEventListener('click', () => {
 function goToIndex(idx) {
     if (!examReady) return;
     if (idx < 0 || idx >= examQuestions.length) return;
-
-    activeIndex  = idx;
+    activeIndex = idx;
     localStorage.setItem('activeIndex', activeIndex);
-    renderQuestion();
-
+    // requestAnimationFrame: beri browser 1 frame napas sebelum render
+    // mencegah UI thread blocking di Android saat navigasi cepat
+    requestAnimationFrame(() => renderQuestion());
 }
 
 document.getElementById('btn-next').addEventListener('click', () => goToIndex(activeIndex + 1));
@@ -338,13 +338,17 @@ function updateGridItem(idx) {
 }
 
 function updateAllGrid(prevIndex) {
-    updateGridItem(prevIndex);
+    if (prevIndex >= 0) updateGridItem(prevIndex); // skip jika belum pernah render
     updateGridItem(activeIndex);
 }
 
+// prevIndex disimpan di luar renderQuestion agar updateAllGrid bisa
+// membedakan kotak lama vs kotak baru dengan benar
+let prevRenderIndex = -1; // -1 = belum pernah render, hindari false-update kotak pertama
 function renderQuestion() {
     if (!examReady || examQuestions.length === 0) return;
-    const prevIndex = activeIndex;
+    const prevIndex = prevRenderIndex;
+    prevRenderIndex = activeIndex;
     const q = examQuestions[activeIndex];
 
     document.getElementById('current-question-num').innerText = activeIndex + 1;
