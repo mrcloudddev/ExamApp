@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwBLg2zwf_3ihoXY1DJeCYvEbfEYsfpAGq2qXQCKOEekeNLlJYoj3tmWkEdo5lATQR5MQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwQVwqCv8JoqWNlgNVNpxu6oRtlG6kx529jcoaXuZzBBkTT2QJnqWfgzXq3IfzU6QkZqw/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
