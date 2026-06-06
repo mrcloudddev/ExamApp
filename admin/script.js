@@ -31,9 +31,51 @@ async function refreshData() {
     } catch (err) { console.error("Sinkronisasi gagal", err); }
 }
 
+// Cache for live monitor data
+let liveDataCache = [];
+
 function renderLiveTable(list) {
-    const tbody = document.getElementById('live-table-body'); if (!tbody) return; tbody.innerHTML = '';
-    list.forEach(item => {
+    liveDataCache = list;
+
+    // Populate kelas dropdown
+    const kelasSet = [...new Set(list.map(s => s.kelas).filter(Boolean))].sort();
+    const kelasSelect = document.getElementById('monitor-filter-kelas');
+    if (kelasSelect) {
+        const prev = kelasSelect.value;
+        kelasSelect.innerHTML = '<option value="">Semua Kelas</option>';
+        kelasSet.forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; if (k === prev) o.selected = true; kelasSelect.appendChild(o); });
+    }
+
+    applyFilterMonitor();
+}
+
+function applyFilterMonitor() {
+    const q      = (document.getElementById('monitor-filter-nama')?.value || '').toLowerCase().trim();
+    const kelas  = document.getElementById('monitor-filter-kelas')?.value  || '';
+    const status = document.getElementById('monitor-filter-status')?.value || '';
+    const viol   = document.getElementById('monitor-filter-violation')?.value || '';
+
+    const filtered = liveDataCache.filter(item => {
+        const matchQ      = !q      || String(item.nisn).toLowerCase().includes(q) || String(item.nama).toLowerCase().includes(q);
+        const matchKelas  = !kelas  || item.kelas === kelas;
+        const matchStatus = !status || (status === 'Selesai' ? String(item.status).startsWith('Selesai') : item.status === status);
+        const matchViol   = !viol   || (viol === 'ada' ? item.pelanggaran > 0 : item.pelanggaran === 0);
+        return matchQ && matchKelas && matchStatus && matchViol;
+    });
+
+    const badge = document.getElementById('monitor-count-badge');
+    if (badge) badge.textContent = filtered.length < liveDataCache.length ? `${filtered.length} / ${liveDataCache.length} siswa` : `${liveDataCache.length} siswa`;
+
+    const tbody = document.getElementById('live-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">Tidak ada siswa yang cocok dengan filter.</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(item => {
         let stateBadge = item.status === 'Belum' ? `<span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold text-[10px]">BELUM MULAI</span>` :
                          item.status === 'Aktif' ? `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-bold text-[10px] animate-pulse">UJIAN</span>` :
                                                    `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold text-[10px]">SELESAI</span>`;
@@ -41,6 +83,15 @@ function renderLiveTable(list) {
         tr.innerHTML = `<td class="p-4 font-mono">${item.nisn}</td><td class="p-4 font-bold text-white">${item.nama}</td><td class="p-4">${item.kelas}</td><td class="p-4">${stateBadge}</td><td class="p-4 text-center font-bold ${item.pelanggaran > 0 ? 'text-rose-400 bg-rose-500/10':''}">${item.pelanggaran}x</td><td class="p-4 text-right font-mono text-indigo-400 font-bold">${item.nilai !== null ? item.nilai : '-'}</td>`;
         tbody.appendChild(tr);
     });
+}
+
+function resetFilterMonitor() {
+    const el = id => document.getElementById(id);
+    if (el('monitor-filter-nama'))      el('monitor-filter-nama').value = '';
+    if (el('monitor-filter-kelas'))     el('monitor-filter-kelas').value = '';
+    if (el('monitor-filter-status'))    el('monitor-filter-status').value = '';
+    if (el('monitor-filter-violation')) el('monitor-filter-violation').value = '';
+    applyFilterMonitor();
 }
 
 // Cache siswa untuk filter
@@ -368,6 +419,10 @@ document.getElementById('form-kontrol-jadwal').addEventListener('submit', async 
 let allSiswaForAkses = [];
 
 function renderAksesTable(list) {
+    // Preserve which NISNs were checked before re-render
+    const prevChecked = new Set(
+        [...document.querySelectorAll('.akses-row-check:checked')].map(cb => cb.getAttribute('data-nisn'))
+    );
     allSiswaForAkses = list.map(s => ({
         nisn: s.nisn,
         nama: s.nama,
@@ -390,10 +445,10 @@ function renderAksesTable(list) {
         });
     }
 
-    filterAksesTable();
+    filterAksesTable(prevChecked);
 }
 
-function filterAksesTable() {
+function filterAksesTable(restoreChecked) {
     const q = (document.getElementById('filter-akses-nama')?.value || '').toLowerCase();
     const kelasFilter = document.getElementById('filter-akses-kelas')?.value || '';
     const statusFilter = document.getElementById('filter-akses-status')?.value || '';
@@ -441,13 +496,23 @@ function filterAksesTable() {
                     </button>
                 </td>
             `;
+            // Restore checked state if NISN was checked before re-render
+            if (restoreChecked && restoreChecked.has(String(s.nisn))) {
+                const cb = tr.querySelector('.akses-row-check');
+                if (cb) cb.checked = true;
+            }
             tbody.appendChild(tr);
         });
     }
 
-    // Reset checkbox state after re-render
+    // Sync checkAll state after re-render (may have restored checks)
+    const allCbs = document.querySelectorAll('.akses-row-check');
+    const checkedCbs = document.querySelectorAll('.akses-row-check:checked');
     const checkAll = document.getElementById('akses-check-all');
-    if (checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
+    if (checkAll) {
+        checkAll.checked = allCbs.length > 0 && checkedCbs.length === allCbs.length;
+        checkAll.indeterminate = checkedCbs.length > 0 && checkedCbs.length < allCbs.length;
+    }
     updateBulkToolbar();
 
     // Update stats
