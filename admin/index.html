@@ -58,7 +58,32 @@
                 </section>
 
                 <section class="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div class="p-5 border-b border-slate-800 bg-slate-950/50"><h3 class="font-bold text-sm text-white flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-rose-500 animate-pulse text-xs"></i> Pemantauan Status Langsung</h3></div>
+                    <div class="p-5 border-b border-slate-800 bg-slate-950/50 flex flex-col md:flex-row md:items-center gap-3">
+                        <h3 class="font-bold text-sm text-white flex items-center gap-2 flex-1"><i class="fa-solid fa-satellite-dish text-rose-500 animate-pulse text-xs"></i> Pemantauan Status Langsung</h3>
+                        <!-- Filter bar -->
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-[10px]"></i>
+                                <input type="text" id="monitor-filter-nama" oninput="applyFilterMonitor()" placeholder="Cari nama / NISN..." class="bg-slate-900 border border-slate-700 rounded-xl pl-7 pr-3 py-1.5 text-white text-xs outline-none focus:border-indigo-500 w-44 placeholder-slate-500">
+                            </div>
+                            <select id="monitor-filter-kelas" onchange="applyFilterMonitor()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-indigo-500">
+                                <option value="">Semua Kelas</option>
+                            </select>
+                            <select id="monitor-filter-status" onchange="applyFilterMonitor()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-indigo-500">
+                                <option value="">Semua Status</option>
+                                <option value="Belum">Belum Mulai</option>
+                                <option value="Aktif">Sedang Ujian</option>
+                                <option value="Selesai">Selesai</option>
+                            </select>
+                            <select id="monitor-filter-violation" onchange="applyFilterMonitor()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-xs outline-none focus:border-indigo-500">
+                                <option value="">Semua</option>
+                                <option value="ada">Ada Pelanggaran</option>
+                                <option value="bersih">Bersih</option>
+                            </select>
+                            <button onclick="resetFilterMonitor()" class="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-semibold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all"><i class="fa-solid fa-filter-circle-xmark"></i> Reset</button>
+                            <span id="monitor-count-badge" class="text-[10px] text-slate-500 font-semibold whitespace-nowrap"></span>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-slate-900/50 text-slate-400 border-b border-slate-800 uppercase font-semibold text-[10px]"><th class="p-4">NISN</th><th class="p-4">Nama Siswa</th><th class="p-4">Kelas</th><th class="p-4">Status</th><th class="p-4 text-center">Log Pelanggaran</th><th class="p-4 text-right">Nilai Akhir</th></tr></thead><tbody id="live-table-body" class="divide-y divide-slate-800/50"><tr><td colspan="6" class="p-8 text-center text-slate-500 font-medium">Memuat data monitoring langsung...</td></tr></tbody></table></div>
                 </section>
             </div>
