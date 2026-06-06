@@ -806,4 +806,18 @@ function buildRekapExcel(data) {
         XLSX.utils.book_append_sheet(wb, ws, safeName);
     });
 
+
+    // Write and download
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob  = new Blob([wbout], { type: 'application/octet-stream' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url;
+    a.download = `Rekap_Nilai_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 window.onload = windowLoadHandler;
