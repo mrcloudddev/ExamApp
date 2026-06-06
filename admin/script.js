@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxrLVrL56G2c6ZoFOLS6EQTfzJ0SrGrjvmf04Cl4MfCtDrCDIR3dwSHndKUEZ1d5e8Q/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwBLg2zwf_3ihoXY1DJeCYvEbfEYsfpAGq2qXQCKOEekeNLlJYoj3tmWkEdo5lATQR5MQ/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -686,190 +686,124 @@ async function exportRekapNilai() {
 }
 
 function buildRekapExcel(data) {
-    // data = { siswa: [...], soal: [...], jawaban: [...] }
-    const { siswa, soal, jawaban } = data;
+    // data v3.4 = { siswa: [...], soalAktifPerKelas: { kelas: { sesi, paket, soal: [...] } } }
+    // Setiap siswa dinilai berdasarkan soal AKTIF di kelasnya masing-masing
+    const { siswa, soalAktifPerKelas } = data;
 
-    // Build soal lookup: id_soal -> { mapel, kunci, bobot }
-    const soalMap = {};
-    soal.forEach(s => { soalMap[String(s.id_soal).trim()] = { mapel: s.mapel || '', kunci: String(s.kunci).trim().toLowerCase(), bobot: Number(s.bobot) || 1 }; });
+    // Helper: soal aktif untuk kelas+mapel tertentu
+    function getSoalKelasMapel(kelas, mapel) {
+        const info = (soalAktifPerKelas || {})[kelas];
+        if (!info) return [];
+        return (info.soal || []).filter(s => s.mapel === mapel);
+    }
 
-    // Build jawaban lookup: nisn -> { id_soal -> jawaban_siswa }
-    const jawMap = {};
-    jawaban.forEach(j => {
-        const n = String(j.nisn).trim();
-        const id = String(j.id_soal).trim();
-        if (!jawMap[n]) jawMap[n] = {};
-        jawMap[n][id] = String(j.jawaban).trim().toLowerCase();
+    // Kumpulkan semua mapel aktif di seluruh kelas
+    const mapelSet = new Set();
+    Object.values(soalAktifPerKelas || {}).forEach(k => {
+        (k.soal || []).forEach(s => { if (s.mapel) mapelSet.add(s.mapel); });
     });
+    const mapelList = [...mapelSet].sort();
 
-    // Collect all unique mapel (sorted)
-    const mapelList = [...new Set(soal.map(s => s.mapel || '').filter(Boolean))].sort();
-    // Collect all soal per mapel
-    const soalPerMapel = {};
-    mapelList.forEach(m => { soalPerMapel[m] = soal.filter(s => s.mapel === m); });
-
-    // Siswa sorted A->Z by nama
     const sortedSiswa = [...siswa].sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'id'));
-
-    // Group siswa per kelas
     const kelasList = [...new Set(sortedSiswa.map(s => s.kelas || '').filter(Boolean))].sort();
 
     const XLSX = window.XLSX;
     const wb = XLSX.utils.book_new();
 
-    // Styles via write options (xlsx community doesn't support full styles without pro,
-    // so we'll use the aoa approach with careful structure)
-
-    // Helper: compute stats for one siswa one mapel
-    function hitungMapel(nisnStr, mapelSoalList) {
-        const jawSiswa = jawMap[nisnStr] || {};
-        let totalSoal = mapelSoalList.length;
-        let benar = 0, salah = 0, tidakJawab = 0, nilaiTotal = 0;
-        mapelSoalList.forEach(s => {
-            const id = String(s.id_soal).trim();
-            const jSiswa = jawSiswa[id];
-            if (!jSiswa || jSiswa === '') {
-                tidakJawab++;
-            } else if (jSiswa === String(s.kunci).trim().toLowerCase()) {
-                benar++;
-                nilaiTotal += Number(s.bobot) || 1;
-            } else {
-                salah++;
-            }
-        });
-        return { totalSoal, benar, salah, tidakJawab, nilai: nilaiTotal };
-    }
-
-    // ---- Sheet 1: REKAP SEMUA (semua siswa, semua mapel) ----
+    // ---- Sheet 1: REKAP SEMUA ----
     {
         const aoa = [];
-        // Title
         aoa.push(['REKAP NILAI UJIAN - SEMUA KELAS']);
+        aoa.push(['Keterangan: Soal yang dihitung hanya soal AKTIF di masing-masing kelas']);
         aoa.push([]);
-
-        // Header row 1
-        const h1 = ['No', 'Nama', 'Kelas', 'Total', '', '', ''];
-        mapelList.forEach(m => { h1.push(m, '', '', '', ''); });
-        h1.push('Nilai Akhir', 'Keterangan');
-        aoa.push(h1);
-
-        // Header row 2
-        const h2 = ['', '', '', 'Nilai', 'Jawab', 'Tidak Jawab', 'Total'];
-        mapelList.forEach(() => { h2.push('Jawaban Benar', 'Jawaban Salah', 'Tidak Jawab', 'Nilai', 'Total Soal'); });
-        h2.push('', '');
-        aoa.push(h2);
+        aoa.push(['No', 'Nama', 'Kelas', 'Sesi', 'Paket', 'Jml Soal Aktif', 'Nilai Akhir', 'Keterangan']);
 
         let no = 1;
         sortedSiswa.forEach(s => {
-            const nisnStr = String(s.nisn).trim();
-            let totalBenar = 0, totalJawab = 0, totalTidakJawab = 0, totalNilai = 0;
-            const row = [no++, s.nama || '', s.kelas || ''];
-            // placeholder for totals (fill later)
-            const totalPlaceholders = [null, null, null, null];
-            const mapelCols = [];
-            mapelList.forEach(m => {
-                const st = hitungMapel(nisnStr, soalPerMapel[m]);
-                totalBenar      += st.benar;
-                totalJawab      += (st.benar + st.salah);
-                totalTidakJawab += st.tidakJawab;
-                totalNilai      += st.nilai;
-                mapelCols.push(st.benar, st.salah, st.tidakJawab, st.nilai, st.totalSoal);
-            });
-            // Fill totals
-            row.push(totalNilai, totalJawab, totalTidakJawab, soal.length);
-            mapelCols.forEach(v => row.push(v));
-            // Nilai akhir & keterangan
-            const nilaiAkhir = s.nilai !== null && s.nilai !== undefined ? s.nilai : totalNilai;
-            const ket = nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS';
-            row.push(nilaiAkhir, ket);
-            aoa.push(row);
+            const kelas   = s.kelas || '';
+            const info    = (soalAktifPerKelas || {})[kelas] || {};
+            const jmlSoal = s.jumlah_soal !== undefined ? s.jumlah_soal : (info.soal || []).length;
+            const nilaiAkhir = (s.nilai !== null && s.nilai !== undefined)
+                ? s.nilai
+                : (s.nilai_realtime !== null && s.nilai_realtime !== undefined ? s.nilai_realtime : '-');
+            const ket = (typeof nilaiAkhir === 'number') ? (nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS') : '-';
+            aoa.push([no++, s.nama||'', kelas, info.sesi||s.sesi_aktif||'', info.paket||s.paket_aktif||'', jmlSoal, nilaiAkhir, ket]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        // Merge title
-        ws['!merges'] = [{ s: {r:0,c:0}, e: {r:0,c:6 + mapelList.length*5 + 1} }];
-        // Column widths
-        const cols = [{wch:5},{wch:28},{wch:18},{wch:10},{wch:10},{wch:14},{wch:10}];
-        mapelList.forEach(() => [14,14,12,10,10].forEach(w => cols.push({wch:w})));
-        cols.push({wch:12},{wch:14});
-        ws['!cols'] = cols;
+        ws['!merges'] = [
+            { s:{r:0,c:0}, e:{r:0,c:7} },
+            { s:{r:1,c:0}, e:{r:1,c:7} }
+        ];
+        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:14},{wch:10},{wch:14},{wch:12},{wch:14}];
         XLSX.utils.book_append_sheet(wb, ws, 'Rekap Semua');
     }
 
     // ---- Sheet per Kelas ----
     kelasList.forEach(kelas => {
         const siswaKelas = sortedSiswa.filter(s => s.kelas === kelas);
+        const info    = (soalAktifPerKelas || {})[kelas] || {};
+        const sesi    = info.sesi  || '';
+        const paket   = info.paket || '';
+        const soalKelas = info.soal || [];
+        const mapelKelas = [...new Set(soalKelas.map(s => s.mapel||'').filter(Boolean))].sort();
+
         const aoa = [];
-        aoa.push([`REKAP NILAI UJIAN - KELAS ${kelas}`]);
+        aoa.push([`REKAP NILAI - KELAS ${kelas}`]);
+        aoa.push([`Sesi: ${sesi||'-'}   |   Paket: ${paket||'-'}   |   Jumlah Soal Aktif: ${soalKelas.length}`]);
         aoa.push([]);
-        const h1 = ['No', 'Nama', 'Total', '', '', ''];
-        mapelList.forEach(m => { h1.push(m, '', '', '', ''); });
-        h1.push('Nilai Akhir', 'Keterangan');
+
+        const h1 = ['No', 'Nama', 'Nilai Akhir', 'Keterangan'];
+        mapelKelas.forEach(m => h1.push(`Soal ${m}`));
         aoa.push(h1);
-        const h2 = ['', '', 'Nilai', 'Jawab', 'Tidak Jawab', 'Total'];
-        mapelList.forEach(() => { h2.push('Benar', 'Salah', 'Tidak Jawab', 'Nilai', 'Total Soal'); });
-        h2.push('', '');
-        aoa.push(h2);
 
         let no = 1;
         siswaKelas.forEach(s => {
-            const nisnStr = String(s.nisn).trim();
-            let totalBenar=0, totalJawab=0, totalTidakJawab=0, totalNilai=0;
-            const mapelCols = [];
-            mapelList.forEach(m => {
-                const st = hitungMapel(nisnStr, soalPerMapel[m]);
-                totalBenar += st.benar; totalJawab += (st.benar+st.salah); totalTidakJawab += st.tidakJawab; totalNilai += st.nilai;
-                mapelCols.push(st.benar, st.salah, st.tidakJawab, st.nilai, st.totalSoal);
-            });
-            const row = [no++, s.nama||'', totalNilai, totalJawab, totalTidakJawab, soal.length];
-            mapelCols.forEach(v => row.push(v));
-            const nilaiAkhir = s.nilai !== null && s.nilai !== undefined ? s.nilai : totalNilai;
-            row.push(nilaiAkhir, nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS');
+            const nilaiAkhir = (s.nilai !== null && s.nilai !== undefined)
+                ? s.nilai
+                : (s.nilai_realtime !== null && s.nilai_realtime !== undefined ? s.nilai_realtime : '-');
+            const ket = (typeof nilaiAkhir === 'number') ? (nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS') : '-';
+            const row = [no++, s.nama||'', nilaiAkhir, ket];
+            mapelKelas.forEach(m => row.push(getSoalKelasMapel(kelas, m).length));
             aoa.push(row);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:5+mapelList.length*5+1} }];
-        const cols = [{wch:5},{wch:28},{wch:10},{wch:10},{wch:14},{wch:10}];
-        mapelList.forEach(() => [12,12,12,10,10].forEach(w => cols.push({wch:w})));
-        cols.push({wch:12},{wch:14});
+        ws['!merges'] = [
+            { s:{r:0,c:0}, e:{r:0,c:3+mapelKelas.length} },
+            { s:{r:1,c:0}, e:{r:1,c:3+mapelKelas.length} }
+        ];
+        const cols = [{wch:5},{wch:28},{wch:12},{wch:14}];
+        mapelKelas.forEach(() => cols.push({wch:14}));
         ws['!cols'] = cols;
-        const safeName = kelas.replace(/[\/\?*[\]]/g,'_').substring(0,28);
+        const safeName = kelas.replace(/[\/\?\*\[\]\\]/g,'_').substring(0,28);
         XLSX.utils.book_append_sheet(wb, ws, safeName);
     });
 
     // ---- Sheet per Mapel ----
     mapelList.forEach(m => {
-        const soalMapel = soalPerMapel[m];
         const aoa = [];
-        aoa.push([`REKAP NILAI - ${m}`]);
+        aoa.push([`REKAP SOAL AKTIF - ${m}`]);
         aoa.push([]);
-        aoa.push(['No','Nama','Kelas','Jawaban Benar','Jawaban Salah','Tidak Jawab','Total Soal','Nilai','Keterangan']);
+        aoa.push(['No', 'Nama', 'Kelas', 'Sesi Aktif', 'Paket Aktif', 'Jml Soal Mapel', 'Nilai Akhir', 'Keterangan']);
 
         let no = 1;
         sortedSiswa.forEach(s => {
-            const st = hitungMapel(String(s.nisn).trim(), soalMapel);
-            const ket = st.nilai >= 75 ? 'LULUS' : 'TIDAK LULUS';
-            aoa.push([no++, s.nama||'', s.kelas||'', st.benar, st.salah, st.tidakJawab, st.totalSoal, st.nilai, ket]);
+            const soalMapelKelas = getSoalKelasMapel(s.kelas||'', m);
+            if (soalMapelKelas.length === 0) return;
+            const info = (soalAktifPerKelas || {})[s.kelas||''] || {};
+            const nilaiAkhir = (s.nilai !== null && s.nilai !== undefined)
+                ? s.nilai
+                : (s.nilai_realtime !== null && s.nilai_realtime !== undefined ? s.nilai_realtime : '-');
+            const ket = (typeof nilaiAkhir === 'number') ? (nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS') : '-';
+            aoa.push([no++, s.nama||'', s.kelas||'', info.sesi||'-', info.paket||'-', soalMapelKelas.length, nilaiAkhir, ket]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:8} }];
-        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:14},{wch:14},{wch:14},{wch:12},{wch:10},{wch:14}];
-        const safeName = m.replace(/[\/\?*[\]]/g,'_').substring(0,28);
+        ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:7} }];
+        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:12},{wch:12},{wch:14},{wch:12},{wch:14}];
+        const safeName = m.replace(/[\/\?\*\[\]\\]/g,'_').substring(0,28);
         XLSX.utils.book_append_sheet(wb, ws, safeName);
     });
 
-    // Write and download
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob  = new Blob([wbout], { type: 'application/octet-stream' });
-    const url   = URL.createObjectURL(blob);
-    const a     = document.createElement('a');
-    a.href = url;
-    a.download = `Rekap_Nilai_${new Date().toISOString().slice(0,10)}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
 window.onload = windowLoadHandler;
