@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwQVwqCv8JoqWNlgNVNpxu6oRtlG6kx529jcoaXuZzBBkTT2QJnqWfgzXq3IfzU6QkZqw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbygQP0lHSZLPn9bbQyQsukP_pl7AaaNyZSNqAhtSeaKQzMPmbUtsxCq_2H-zvwC5SbNPA/exec";
 
 // --- CLIENT ROUTER ENGINE ---
 document.querySelectorAll('#sidebar-nav button').forEach(button => {
@@ -716,7 +716,7 @@ function buildRekapExcel(data) {
         aoa.push(['REKAP NILAI UJIAN - SEMUA KELAS']);
         aoa.push(['Keterangan: Soal yang dihitung hanya soal AKTIF di masing-masing kelas']);
         aoa.push([]);
-        aoa.push(['No', 'Nama', 'Kelas', 'Sesi', 'Paket', 'Jml Soal Aktif', 'Nilai Akhir', 'Keterangan']);
+        aoa.push(['No', 'Nama', 'Kelas', 'Sesi', 'Paket', 'Jml Soal Aktif', 'Log Pelanggaran', 'Nilai Akhir', 'Keterangan']);
 
         let no = 1;
         sortedSiswa.forEach(s => {
@@ -727,15 +727,15 @@ function buildRekapExcel(data) {
                 ? s.nilai
                 : (s.nilai_realtime !== null && s.nilai_realtime !== undefined ? s.nilai_realtime : '-');
             const ket = (typeof nilaiAkhir === 'number') ? (nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS') : '-';
-            aoa.push([no++, s.nama||'', kelas, info.sesi||s.sesi_aktif||'', info.paket||s.paket_aktif||'', jmlSoal, nilaiAkhir, ket]);
+            aoa.push([no++, s.nama||'', kelas, info.sesi||s.sesi_aktif||'', info.paket||s.paket_aktif||'', jmlSoal, s.pelanggaran||0, nilaiAkhir, ket]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         ws['!merges'] = [
-            { s:{r:0,c:0}, e:{r:0,c:7} },
-            { s:{r:1,c:0}, e:{r:1,c:7} }
+            { s:{r:0,c:0}, e:{r:0,c:8} },
+            { s:{r:1,c:0}, e:{r:1,c:8} }
         ];
-        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:14},{wch:10},{wch:14},{wch:12},{wch:14}];
+        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:14},{wch:10},{wch:14},{wch:14},{wch:12},{wch:14}];
         XLSX.utils.book_append_sheet(wb, ws, 'Rekap Semua');
     }
 
@@ -753,7 +753,7 @@ function buildRekapExcel(data) {
         aoa.push([`Sesi: ${sesi||'-'}   |   Paket: ${paket||'-'}   |   Jumlah Soal Aktif: ${soalKelas.length}`]);
         aoa.push([]);
 
-        const h1 = ['No', 'Nama', 'Nilai Akhir', 'Keterangan'];
+        const h1 = ['No', 'Nama', 'Log Pelanggaran', 'Nilai Akhir', 'Keterangan'];
         mapelKelas.forEach(m => h1.push(`Soal ${m}`));
         aoa.push(h1);
 
@@ -763,17 +763,17 @@ function buildRekapExcel(data) {
                 ? s.nilai
                 : (s.nilai_realtime !== null && s.nilai_realtime !== undefined ? s.nilai_realtime : '-');
             const ket = (typeof nilaiAkhir === 'number') ? (nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS') : '-';
-            const row = [no++, s.nama||'', nilaiAkhir, ket];
+            const row = [no++, s.nama||'', s.pelanggaran||0, nilaiAkhir, ket];
             mapelKelas.forEach(m => row.push(getSoalKelasMapel(kelas, m).length));
             aoa.push(row);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         ws['!merges'] = [
-            { s:{r:0,c:0}, e:{r:0,c:3+mapelKelas.length} },
-            { s:{r:1,c:0}, e:{r:1,c:3+mapelKelas.length} }
+            { s:{r:0,c:0}, e:{r:0,c:4+mapelKelas.length} },
+            { s:{r:1,c:0}, e:{r:1,c:4+mapelKelas.length} }
         ];
-        const cols = [{wch:5},{wch:28},{wch:12},{wch:14}];
+        const cols = [{wch:5},{wch:28},{wch:14},{wch:12},{wch:14}];
         mapelKelas.forEach(() => cols.push({wch:14}));
         ws['!cols'] = cols;
         const safeName = kelas.replace(/[\/\?\*\[\]\\]/g,'_').substring(0,28);
@@ -785,7 +785,7 @@ function buildRekapExcel(data) {
         const aoa = [];
         aoa.push([`REKAP SOAL AKTIF - ${m}`]);
         aoa.push([]);
-        aoa.push(['No', 'Nama', 'Kelas', 'Sesi Aktif', 'Paket Aktif', 'Jml Soal Mapel', 'Nilai Akhir', 'Keterangan']);
+        aoa.push(['No', 'Nama', 'Kelas', 'Sesi Aktif', 'Paket Aktif', 'Jml Soal Mapel', 'Log Pelanggaran', 'Nilai Akhir', 'Keterangan']);
 
         let no = 1;
         sortedSiswa.forEach(s => {
@@ -796,12 +796,12 @@ function buildRekapExcel(data) {
                 ? s.nilai
                 : (s.nilai_realtime !== null && s.nilai_realtime !== undefined ? s.nilai_realtime : '-');
             const ket = (typeof nilaiAkhir === 'number') ? (nilaiAkhir >= 75 ? 'LULUS' : 'TIDAK LULUS') : '-';
-            aoa.push([no++, s.nama||'', s.kelas||'', info.sesi||'-', info.paket||'-', soalMapelKelas.length, nilaiAkhir, ket]);
+            aoa.push([no++, s.nama||'', s.kelas||'', info.sesi||'-', info.paket||'-', soalMapelKelas.length, s.pelanggaran||0, nilaiAkhir, ket]);
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:7} }];
-        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:12},{wch:12},{wch:14},{wch:12},{wch:14}];
+        ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:8} }];
+        ws['!cols'] = [{wch:5},{wch:28},{wch:18},{wch:12},{wch:12},{wch:14},{wch:12},{wch:12},{wch:14}];
         const safeName = m.replace(/[\/\?\*\[\]\\]/g,'_').substring(0,28);
         XLSX.utils.book_append_sheet(wb, ws, safeName);
     });
