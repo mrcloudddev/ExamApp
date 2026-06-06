@@ -418,6 +418,9 @@ function filterAksesTable() {
             tr.className = 'hover:bg-slate-900/40 border-b border-slate-800/40 transition-colors ' + (isBuka ? '' : 'opacity-60');
             tr.id = `akses-row-${s.nisn}`;
             tr.innerHTML = `
+                <td class="p-4 w-10">
+                    <input type="checkbox" class="akses-row-check w-3.5 h-3.5 rounded accent-indigo-500 cursor-pointer" data-nisn="${s.nisn}" onchange="onRowCheckChange()">
+                </td>
                 <td class="p-4 font-mono text-indigo-400 font-bold">${s.nisn}</td>
                 <td class="p-4 font-bold text-white">${s.nama}</td>
                 <td class="p-4 text-slate-400">${s.kelas}</td>
@@ -441,6 +444,11 @@ function filterAksesTable() {
             tbody.appendChild(tr);
         });
     }
+
+    // Reset checkbox state after re-render
+    const checkAll = document.getElementById('akses-check-all');
+    if (checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
+    updateBulkToolbar();
 
     // Update stats
     const total = allSiswaForAkses.length;
@@ -508,6 +516,86 @@ async function aksesAction(type) {
         console.error('Gagal:', err);
         alert('Gagal mengubah akses semua siswa. Periksa koneksi.');
         refreshData();
+    }
+}
+
+
+// ============================================================
+// CHECKBOX SELECTION — Akses Ujian
+// ============================================================
+
+function getCheckedNisns() {
+    return [...document.querySelectorAll('.akses-row-check:checked')].map(cb => cb.getAttribute('data-nisn'));
+}
+
+function onRowCheckChange() {
+    const all   = document.querySelectorAll('.akses-row-check');
+    const checked = document.querySelectorAll('.akses-row-check:checked');
+    const checkAll = document.getElementById('akses-check-all');
+    if (checkAll) {
+        checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
+        checkAll.checked = all.length > 0 && checked.length === all.length;
+    }
+    updateBulkToolbar();
+}
+
+function toggleCheckAll(masterCb) {
+    document.querySelectorAll('.akses-row-check').forEach(cb => { cb.checked = masterCb.checked; });
+    updateBulkToolbar();
+}
+
+function clearAllChecked() {
+    document.querySelectorAll('.akses-row-check').forEach(cb => { cb.checked = false; });
+    const checkAll = document.getElementById('akses-check-all');
+    if (checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
+    updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+    const checkedNisns = getCheckedNisns();
+    const toolbar = document.getElementById('akses-bulk-toolbar');
+    const counter = document.getElementById('akses-selected-count');
+    if (!toolbar) return;
+    if (checkedNisns.length > 0) {
+        toolbar.classList.remove('hidden');
+        toolbar.classList.add('flex');
+        if (counter) counter.innerHTML = `<i class="fa-solid fa-check-square"></i> ${checkedNisns.length} siswa dipilih`;
+    } else {
+        toolbar.classList.add('hidden');
+        toolbar.classList.remove('flex');
+    }
+}
+
+async function aksesActionSelected(newAkses) {
+    const nisns = getCheckedNisns();
+    if (nisns.length === 0) return;
+    const label = newAkses === 'buka' ? 'membuka' : 'menutup';
+    if (!confirm(`Apakah Anda yakin ingin ${label} akses untuk ${nisns.length} siswa terpilih?`)) return;
+
+    // Optimistic UI update
+    nisns.forEach(nisn => {
+        const siswa = allSiswaForAkses.find(s => String(s.nisn) === String(nisn));
+        if (siswa) siswa.akses = newAkses;
+    });
+    filterAksesTable();
+    clearAllChecked();
+
+    // Send requests sequentially (no-cors)
+    for (const nisn of nisns) {
+        try {
+            const body = new URLSearchParams();
+            body.append('action', 'setAksesUjian');
+            body.append('nisn', String(nisn));
+            body.append('akses', newAkses.toUpperCase());
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            });
+        } catch (err) {
+            console.error('Gagal mengubah akses untuk NISN:', nisn, err);
+        }
     }
 }
 
