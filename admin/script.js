@@ -27,8 +27,40 @@ async function refreshData() {
             renderAksesTable(data.siswaList);
             renderSoalTable(data.soalList);
             renderJadwalTable(data.jadwalList);
+            populateKelasDropdowns(data.siswaList);
         }
     } catch (err) { console.error("Sinkronisasi gagal", err); }
+}
+
+// ── Populate kelas dropdowns (Tambah Soal & Kontrol Jadwal) ──────────────────
+function populateKelasDropdowns(siswaList) {
+    const kelasSet = [...new Set(siswaList.map(s => s.kelas).filter(Boolean))].sort();
+
+    // Dropdown "Target Kelas" di form tambah soal
+    const addKelas = document.getElementById('add-target-kelas');
+    if (addKelas) {
+        const prevAdd = addKelas.value;
+        addKelas.innerHTML = '<option value="">— Pilih Kelas —</option>';
+        kelasSet.forEach(k => {
+            const o = document.createElement('option');
+            o.value = k; o.textContent = k;
+            if (k === prevAdd) o.selected = true;
+            addKelas.appendChild(o);
+        });
+    }
+
+    // Dropdown "Kelas Target" di form kontrol jadwal
+    const setKelas = document.getElementById('set-kelas');
+    if (setKelas) {
+        const prevSet = setKelas.value;
+        setKelas.innerHTML = '<option value="">— Pilih Kelas —</option>';
+        kelasSet.forEach(k => {
+            const o = document.createElement('option');
+            o.value = k; o.textContent = k;
+            if (k === prevSet) o.selected = true;
+            setKelas.appendChild(o);
+        });
+    }
 }
 
 // Cache for live monitor data
