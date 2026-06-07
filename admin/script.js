@@ -26,7 +26,7 @@ async function refreshData() {
             renderSiswaTable(data.siswaList);
             renderAksesTable(data.siswaList);
             renderSoalTable(data.soalList);
-            renderJadwalTable(data.jadwalList);
+            renderJadwalTable(data.jadwalList, data.soalList);
             populateKelasDropdowns(data.siswaList);
         }
     } catch (err) { console.error("Sinkronisasi gagal", err); }
@@ -357,9 +357,25 @@ async function submitEditSoal() {
     }
 }
 
-function renderJadwalTable(list) {
+function renderJadwalTable(list, soalList) {
     const tbody = document.getElementById('jadwal-table-body'); if (!tbody) return; tbody.innerHTML = '';
-    if(!list || list.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-600">Belum ada pengaturan gerbang.</td></tr>`; return; }
+    if(!list || list.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-600">Belum ada pengaturan gerbang.</td></tr>`; return; }
+
+    // Bangun index soal: { "SESI_1|PAKET_A|XI-BP": { "Matematika": 10, "IPA": 5 } }
+    const soalIndex = {};
+    (soalList || []).forEach(s => {
+        const sesi  = String(s.sesi_soal  || '').trim();
+        const paket = String(s.paket_soal || '').trim();
+        const mapel = String(s.mapel      || '').trim();
+        const kelas = String(s.target_kelas || '').trim();
+        if (!sesi || !paket || !mapel || !kelas) return;
+        kelas.split(',').forEach(k => {
+            const key = sesi + '|' + paket + '|' + k.trim();
+            if (!soalIndex[key]) soalIndex[key] = {};
+            soalIndex[key][mapel] = (soalIndex[key][mapel] || 0) + 1;
+        });
+    });
+
     list.forEach(item => {
         let isOff = item.sesi === "OFF";
         let isTutup = item.gerbang === "TUTUP";
@@ -385,6 +401,31 @@ function renderJadwalTable(list) {
             }
         }
 
+        // Bangun badge mapel untuk kelas + sesi + paket ini
+        let mapelHtml = '<span class="text-slate-600 text-[10px]">—</span>';
+        if (!isOff) {
+            const key = item.sesi + '|' + item.paket + '|' + item.kelas;
+            const mapelMap = soalIndex[key] || {};
+            const entries  = Object.entries(mapelMap).sort((a, b) => a[0].localeCompare(b[0]));
+            if (entries.length > 0) {
+                const colors = [
+                    'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+                    'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                    'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                    'bg-rose-500/20 text-rose-300 border-rose-500/30',
+                    'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+                    'bg-purple-500/20 text-purple-300 border-purple-500/30',
+                ];
+                mapelHtml = '<div class="flex flex-wrap gap-1">' +
+                    entries.map(([m, n], i) =>
+                        `<span class="border text-[9px] font-bold px-1.5 py-0.5 rounded-md ${colors[i % colors.length]}">${m} <span class="opacity-70">(${n})</span></span>`
+                    ).join('') +
+                '</div>';
+            } else {
+                mapelHtml = '<span class="text-rose-400/70 text-[10px] font-semibold">Belum ada soal</span>';
+            }
+        }
+
         let tr = document.createElement('tr'); tr.className = isOff ? "opacity-40 bg-slate-900/10 text-slate-500" : "bg-slate-900/40 text-slate-300 font-medium";
         let statusBtn = isOff ? `<span class="text-slate-600 text-[11px] font-bold">—</span>` :
             isTutup
@@ -392,7 +433,7 @@ function renderJadwalTable(list) {
             : `<button onclick="toggleGerbang('${item.kelas}','TUTUP')" class="bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 font-bold px-3 py-1 rounded-lg text-[10px] transition-all"><i class="fa-solid fa-lock-open mr-1"></i>BUKA</button>`;
         const durasiStr  = (item.durasi_menit && item.durasi_menit > 0) ? (item.durasi_menit + ' mnt') : '— belum diset';
         const waktuKolom = (item.waktu_mulai && item.waktu_mulai > 0) ? (waktuMulaiStr + (!isOff ? '<br>' + sisaStr : '')) : '—';
-        tr.innerHTML = `<td class="p-3 font-bold text-white">${item.kelas}</td><td class="p-3 font-mono text-amber-400">${item.sesi}</td><td class="p-3 font-mono text-indigo-400">${item.paket}</td><td class="p-3 text-center text-slate-300">${durasiStr}</td><td class="p-3 text-center text-slate-400 font-mono text-[11px]">${waktuKolom}</td><td class="p-3 text-right">${statusBtn}</td>`;
+        tr.innerHTML = `<td class="p-3 font-bold text-white">${item.kelas}</td><td class="p-3 font-mono text-amber-400">${item.sesi}</td><td class="p-3 font-mono text-indigo-400">${item.paket}</td><td class="p-3 text-center text-slate-300">${durasiStr}</td><td class="p-3 text-center text-slate-400 font-mono text-[11px]">${waktuKolom}</td><td class="p-3">${mapelHtml}</td><td class="p-3 text-right">${statusBtn}</td>`;
         tbody.appendChild(tr);
     });
 }
