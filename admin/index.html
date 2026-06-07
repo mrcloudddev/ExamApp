@@ -321,6 +321,17 @@
                         <h4 class="text-xs font-bold text-slate-300">Status Gerbang Sesi Aktif Saat Ini</h4>
                         <div class="overflow-x-auto border border-slate-800 rounded-2xl"><table class="w-full text-left text-xs border-collapse"><tr class="bg-slate-900 text-slate-400 border-b border-slate-800 font-semibold text-[10px]"><th class="p-3">Nama Kelas</th><th class="p-3">Sesi Aktif</th><th class="p-3">Rilis Paket</th><th class="p-3 text-center">Durasi</th><th class="p-3 text-center">Waktu Mulai</th><th class="p-3">Mapel &amp; Soal</th><th class="p-3 text-right">Status</th></tr><tbody id="jadwal-table-body" class="divide-y divide-slate-800/40"><tr><td colspan="6" class="p-4 text-center text-slate-600">Memuat data kontrol aktif...</td></tr></tbody></table></div>
                     </div>
+                    <!-- Panel Referensi Jadwal per Mapel -->
+                    <div class="space-y-2 pt-2 border-t border-slate-800">
+                        <div class="flex items-center gap-2 pt-3">
+                            <i class="fa-solid fa-book-open text-indigo-400 text-xs"></i>
+                            <h4 class="text-xs font-bold text-slate-300">Referensi Jadwal per Mata Pelajaran</h4>
+                            <span class="text-[10px] text-slate-500">— tiap mapel ada di sesi &amp; paket mana</span>
+                        </div>
+                        <div id="mapel-jadwal-panel" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <div class="text-slate-600 text-[11px] p-4 col-span-3 text-center">Memuat data...</div>
+                        </div>
+                    </div>
                 </section>
             </div>
         </main>
