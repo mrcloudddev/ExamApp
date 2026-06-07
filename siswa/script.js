@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbygQP0lHSZLPn9bbQyQsukP_pl7AaaNyZSNqAhtSeaKQzMPmbUtsxCq_2H-zvwC5SbNPA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxoMTC5LaWy_bOHd8893zYIh7yYfrBxeAv3hbP7PohdBeyVaHxCAnnZOuc6CD5k1S0v6A/exec";
 
 let sessionToken = "";
 let examQuestions = [];
@@ -503,9 +503,11 @@ function autoSubmitExam(reason) {
     if (reason === "Melebihi Batas Toleransi Kecurangan") {
         const nisn = localStorage.getItem('nisn');
         navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetStatusSiswa', nisn }));
+        // Hapus semua jawaban siswa di server agar mengerjakan dari awal
+        navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetJawaban', nisn }));
         localStorage.removeItem('studentAnswers');
         localStorage.removeItem('activeIndex');
-        alert("\u26a0\ufe0f Anda telah melakukan 3 pelanggaran!\nSesi dihentikan. Lapor ke pengawas, lalu login ulang untuk mengerjakan kembali.");
+        alert("\u26a0\ufe0f Anda telah melakukan 3 pelanggaran!\nSemua jawaban Anda dihapus. Lapor ke pengawas, lalu login ulang untuk mengerjakan kembali dari soal pertama.");
         sessionToken = ""; examQuestions = []; studentAnswers = {}; doubtfulQuestions = {};
         activeIndex = 0; violationCount = 0; isFinishingExam = false;
         switchPage('login');
