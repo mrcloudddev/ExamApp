@@ -503,9 +503,11 @@ function autoSubmitExam(reason) {
     if (reason === "Melebihi Batas Toleransi Kecurangan") {
         const nisn = localStorage.getItem('nisn');
         navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetStatusSiswa', nisn }));
+        // Hapus semua jawaban siswa di server agar mengerjakan dari awal
+        navigator.sendBeacon(API_URL, new URLSearchParams({ action: 'resetJawaban', nisn }));
         localStorage.removeItem('studentAnswers');
         localStorage.removeItem('activeIndex');
-        alert("\u26a0\ufe0f Anda telah melakukan 3 pelanggaran!\nSesi dihentikan. Lapor ke pengawas, lalu login ulang untuk mengerjakan kembali.");
+        alert("\u26a0\ufe0f Anda telah melakukan 3 pelanggaran!\nSemua jawaban Anda dihapus. Lapor ke pengawas, lalu login ulang untuk mengerjakan kembali dari soal pertama.");
         sessionToken = ""; examQuestions = []; studentAnswers = {}; doubtfulQuestions = {};
         activeIndex = 0; violationCount = 0; isFinishingExam = false;
         switchPage('login');
