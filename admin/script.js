@@ -27,6 +27,7 @@ async function refreshData() {
             renderAksesTable(data.siswaList);
             renderSoalTable(data.soalList);
             renderJadwalTable(data.jadwalList, data.soalList);
+            renderMapelJadwalPanel(data.soalList);
             populateKelasDropdowns(data.siswaList);
         }
     } catch (err) { console.error("Sinkronisasi gagal", err); }
@@ -894,3 +895,72 @@ function buildRekapExcel(data) {
 }
 
 window.onload = windowLoadHandler;
+
+// ============================================================
+// PANEL REFERENSI JADWAL PER MAPEL
+// Menampilkan: tiap mapel → sesi & paket mana saja
+// ============================================================
+function renderMapelJadwalPanel(soalList) {
+    const panel = document.getElementById('mapel-jadwal-panel');
+    if (!panel) return;
+
+    // Bangun map: mapel → Set of "SESI_X / PAKET_Y (kelas1, kelas2)"
+    // Struktur: { "Matematika": { "SESI_1|PAKET_A": Set<kelas> } }
+    const mapelMap = {};
+    (soalList || []).forEach(s => {
+        const mapel = String(s.mapel || '').trim();
+        const sesi  = String(s.sesi_soal || '').trim();
+        const paket = String(s.paket_soal || '').trim();
+        const kelas = String(s.target_kelas || '').trim();
+        if (!mapel || !sesi || !paket) return;
+        if (!mapelMap[mapel]) mapelMap[mapel] = {};
+        const key = sesi + '|' + paket;
+        if (!mapelMap[mapel][key]) mapelMap[mapel][key] = new Set();
+        kelas.split(',').forEach(k => { const kt = k.trim(); if (kt) mapelMap[mapel][key].add(kt); });
+    });
+
+    const mapelList = Object.keys(mapelMap).sort();
+    if (mapelList.length === 0) {
+        panel.innerHTML = '<div class="text-slate-600 text-[11px] p-4 col-span-3 text-center">Belum ada soal di bank soal.</div>';
+        return;
+    }
+
+    const sesiColors = {
+        'SESI_1': 'text-amber-400',
+        'SESI_2': 'text-emerald-400',
+        'SESI_3': 'text-cyan-400',
+        'SESI_4': 'text-purple-400',
+    };
+    const paketColors = {
+        'PAKET_A': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+        'PAKET_B': 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+        'PAKET_C': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    };
+
+    panel.innerHTML = mapelList.map(mapel => {
+        const jadwalMap = mapelMap[mapel];
+        const rows = Object.entries(jadwalMap).sort((a, b) => a[0].localeCompare(b[0])).map(([key, kelasSet]) => {
+            const [sesi, paket] = key.split('|');
+            const sesiClass  = sesiColors[sesi]  || 'text-slate-300';
+            const paketClass = paketColors[paket] || 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+            const kelasList  = [...kelasSet].sort().join(', ');
+            return `
+                <div class="flex items-center justify-between gap-2 py-1.5 border-b border-slate-800/60 last:border-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-[11px] ${sesiClass}">${sesi.replace('_',' ')}</span>
+                        <span class="border text-[9px] font-bold px-1.5 py-0.5 rounded ${paketClass}">${paket.replace('_',' ')}</span>
+                    </div>
+                    <span class="text-slate-500 text-[10px] text-right truncate max-w-[120px]" title="${kelasList}">${kelasList}</span>
+                </div>`;
+        }).join('');
+
+        return `
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-1">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-circle-dot text-indigo-400 text-[10px]"></i>
+                    <span class="font-bold text-white text-[12px]">${mapel}</span>
+                </div>
+                ${rows}
+            </div>`;
+    }).join('');
+}
